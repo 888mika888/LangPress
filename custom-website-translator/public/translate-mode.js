@@ -129,6 +129,9 @@
             } )
             .join( '' );
 
+        const defMeta   = LANG_META[ defLang ] || { flag: '', label: defLang.toUpperCase() };
+        const fromLabel = defMeta.flag + ' ' + defMeta.label;
+
         const sidebar = document.createElement( 'div' );
         sidebar.id = 'cwt-sidebar';
         sidebar.setAttribute( 'translate', 'no' );
@@ -148,7 +151,7 @@
           +     '</div>'
           +     '<div class="cwt-sidebar__fields" id="cwt-fields" style="display:none">'
           +         '<div class="cwt-sidebar__field">'
-          +             '<label class="cwt-sidebar__label" id="cwt-from-label">🇩🇪 Originaltext</label>'
+          +             '<label class="cwt-sidebar__label" id="cwt-from-label">' + fromLabel + ' Originaltext</label>'
           +             '<textarea class="cwt-sidebar__textarea cwt-sidebar__textarea--readonly" id="cwt-sidebar-de" readonly rows="4"></textarea>'
           +             '<span class="cwt-sidebar__label" style="font-size:10px;margin-top:2px">Text</span>'
           +         '</div>'

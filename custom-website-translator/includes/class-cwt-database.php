@@ -261,11 +261,18 @@ class CWT_Database {
         $where  = 'WHERE 1=1';
         $params = [];
 
+        // Status-Filter innerhalb der Unterabfrage anwenden
+        $allowed_statuses = [ 'active', 'pending', 'ignored' ];
+        $inner_cond = '';
+        if ( $status_filter !== '' && in_array( $status_filter, $allowed_statuses, true ) ) {
+            $inner_cond = $wpdb->prepare( 'AND status = %s', $status_filter );
+        }
+
         // Deduplizierte Übersicht: eine Zeile pro Original-Hash
-        // Wir joinen alle Sprachen in einer Unterabfrage
         $base_sql = "FROM (
             SELECT DISTINCT text_hash, original_text, MIN(page_url) AS page_url, MIN(created_at) AS created_at
             FROM {$this->table_translations}
+            WHERE 1=1 {$inner_cond}
             GROUP BY text_hash, original_text
         ) AS originals";
 

@@ -55,11 +55,15 @@
         } )
         .done( function ( res ) {
             if ( res.success ) {
-                // Status-Badge aktualisieren
+                // Wenn Übersetzungstext vorhanden → Server hat auto-aktiviert → UI anpassen
+                const effectiveStatus = translated.trim() !== '' ? 'active' : status;
+
                 $badge
                     .removeClass( 'cwt-status--active cwt-status--pending cwt-status--ignored' )
-                    .addClass( 'cwt-status--' + status )
-                    .text( CWT_Admin.i18n[ status ] || status );
+                    .addClass( 'cwt-status--' + effectiveStatus )
+                    .text( CWT_Admin.i18n[ effectiveStatus ] || effectiveStatus );
+
+                $select.val( effectiveStatus );
 
                 $cell.addClass( 'cwt-save-success' );
                 setTimeout( () => $cell.removeClass( 'cwt-save-success' ), 700 );

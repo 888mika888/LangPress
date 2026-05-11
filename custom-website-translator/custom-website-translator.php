@@ -3,7 +3,7 @@
  * Plugin Name: Custom Website Translator
  * Plugin URI:  https://example.com/custom-website-translator
  * Description: Professionelles mehrsprachiges Übersetzungs-Plugin mit manueller Verwaltung. Unterstützt Deutsch, Englisch und Ukrainisch ohne Seitenduplikate.
- * Version:     1.0.0
+ * Version:     1.1.0
  * Author:      Your Name
  * Author URI:  https://example.com
  * Text Domain: custom-website-translator
@@ -16,7 +16,7 @@
 defined( 'ABSPATH' ) || exit;
 
 // Plugin-Konstanten
-define( 'CWT_VERSION',     '1.0.0' );
+define( 'CWT_VERSION',     '1.1.0' );
 define( 'CWT_PLUGIN_FILE', __FILE__ );
 define( 'CWT_PLUGIN_DIR',  plugin_dir_path( __FILE__ ) );
 define( 'CWT_PLUGIN_URL',  plugin_dir_url( __FILE__ ) );

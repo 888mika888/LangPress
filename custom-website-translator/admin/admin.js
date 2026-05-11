@@ -71,9 +71,8 @@
             alert( CWT_Admin.i18n.error );
         } )
         .always( function () {
-            $btn.prop( 'disabled', false ).text( CWT_Admin.i18n.saved.replace( '!', '' ) + ' ▸' );
-            // Label zurücksetzen
-            setTimeout( () => $btn.text( 'Speichern' ), 1500 );
+            $btn.prop( 'disabled', false ).text( '✓' );
+            setTimeout( () => $btn.text( CWT_Admin.i18n.saveBtn ), 1500 );
         } );
     } );
 
@@ -111,13 +110,13 @@
         if ( ! confirm( CWT_Admin.i18n.confirm ) ) return;
 
         const $btn = $( this );
-        const id   = $btn.data( 'id' );
+        const hash = $btn.closest( 'tr' ).data( 'hash' );
         const $row = $btn.closest( 'tr' );
 
         $.post( CWT_Admin.ajaxUrl, {
             action: 'cwt_delete_translation',
             nonce:  CWT_Admin.nonce,
-            id:     id,
+            hash:   hash,
         } )
         .done( function ( res ) {
             if ( res.success ) {
@@ -149,6 +148,25 @@
         .always( function () {
             $btn.prop( 'disabled', false ).text( 'Cache geleert ✓' );
             setTimeout( () => $btn.text( 'Übersetzungs-Cache leeren' ), 2000 );
+        } );
+    } );
+
+    // -------------------------------------------------------------------------
+    // Datenbank neu installieren (Debug-Seite)
+    // -------------------------------------------------------------------------
+    $( '#cwt-reinstall-db' ).on( 'click', function () {
+        if ( ! confirm( 'Datenbank neu installieren? Bestehende Daten bleiben erhalten (dbDelta).' ) ) return;
+
+        const $btn = $( this );
+        $btn.prop( 'disabled', true ).text( '…' );
+
+        $.post( CWT_Admin.ajaxUrl, {
+            action: 'cwt_reinstall_db',
+            nonce:  CWT_Admin.nonce,
+        } )
+        .always( function () {
+            $btn.prop( 'disabled', false ).text( 'Neu installiert ✓' );
+            setTimeout( () => $btn.text( 'Datenbank neu installieren' ), 2000 );
         } );
     } );
 

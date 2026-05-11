@@ -208,7 +208,7 @@ class CWT_Database {
     }
 
     /**
-     * Übersetzungseintrag löschen.
+     * Übersetzungseintrag löschen (einzelner Eintrag per ID).
      */
     public function delete_translation( int $id ): bool {
         global $wpdb;
@@ -218,6 +218,21 @@ class CWT_Database {
             [ 'id' => $id ],
             [ '%d' ]
         );
+    }
+
+    /**
+     * Alle Übersetzungseinträge eines Originaltexts löschen (alle Sprachen).
+     */
+    public function delete_by_hash( string $hash ): bool {
+        global $wpdb;
+
+        $result = $wpdb->delete(
+            $this->table_translations,
+            [ 'text_hash' => $hash ],
+            [ '%s' ]
+        );
+
+        return $result !== false && $result > 0;
     }
 
     // -------------------------------------------------------------------------

@@ -19,6 +19,8 @@ class CWT_Admin {
         add_action( 'wp_ajax_cwt_delete_translation',[ $this, 'ajax_delete_translation' ] );
         add_action( 'wp_ajax_cwt_export',            [ $this, 'ajax_export' ] );
         add_action( 'wp_ajax_cwt_import',            [ $this, 'ajax_import' ] );
+        add_action( 'wp_ajax_cwt_clear_cache',       [ $this, 'ajax_clear_cache' ] );
+        add_action( 'wp_ajax_cwt_reinstall_db',      [ $this, 'ajax_reinstall_db' ] );
 
         // Plugin-Aktionslinks
         add_filter( 'plugin_action_links_' . CWT_PLUGIN_BASENAME, [ $this, 'plugin_action_links' ] );
@@ -141,6 +143,7 @@ class CWT_Admin {
             'nonce'   => wp_create_nonce( 'cwt_admin_nonce' ),
             'i18n'    => [
                 'saved'   => __( 'Gespeichert!', 'custom-website-translator' ),
+                'saveBtn' => __( 'Speichern', 'custom-website-translator' ),
                 'error'   => __( 'Fehler beim Speichern.', 'custom-website-translator' ),
                 'confirm' => __( 'Wirklich löschen?', 'custom-website-translator' ),
                 'active'  => __( 'Aktiv', 'custom-website-translator' ),
@@ -399,8 +402,12 @@ class CWT_Admin {
             wp_send_json_error( [ 'message' => 'Insufficient permissions.' ] );
         }
 
-        $id     = absint( $_POST['id'] ?? 0 );
-        $result = CWT_Database::instance()->delete_translation( $id );
+        $hash   = sanitize_text_field( wp_unslash( $_POST['hash'] ?? '' ) );
+        if ( $hash === '' ) {
+            wp_send_json_error( [ 'message' => 'Missing hash.' ] );
+        }
+
+        $result = CWT_Database::instance()->delete_by_hash( $hash );
         CWT_Translator::instance()->invalidate_cache();
 
         $result
@@ -440,6 +447,28 @@ class CWT_Admin {
 
     public function ajax_import(): void {
         // Wird über POST-Formular abgehandelt
+    }
+
+    public function ajax_clear_cache(): void {
+        check_ajax_referer( 'cwt_admin_nonce', 'nonce' );
+
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_send_json_error( [ 'message' => 'Insufficient permissions.' ] );
+        }
+
+        CWT_Translator::instance()->invalidate_cache();
+        wp_send_json_success( [ 'message' => __( 'Cache geleert.', 'custom-website-translator' ) ] );
+    }
+
+    public function ajax_reinstall_db(): void {
+        check_ajax_referer( 'cwt_admin_nonce', 'nonce' );
+
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_send_json_error( [ 'message' => 'Insufficient permissions.' ] );
+        }
+
+        CWT_Database::instance()->install();
+        wp_send_json_success( [ 'message' => 'DB neu installiert.' ] );
     }
 
     // -------------------------------------------------------------------------

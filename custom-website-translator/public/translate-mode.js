@@ -2,30 +2,41 @@
 ( function () {
     'use strict';
 
-    // Plugin-Daten fehlen → kein Admin oder nicht korrekt eingebunden
     if ( typeof CWT_Translate === 'undefined' ) return;
 
     const cfg = CWT_Translate;
 
-    // Tags die komplett übersprungen werden
+    // Tags komplett überspringen
     const SKIP_TAGS = new Set( [
         'script', 'style', 'noscript', 'code', 'pre',
         'textarea', 'iframe', 'svg', 'path', 'input',
         'select', 'option', 'meta', 'link', 'head',
     ] );
 
-    // Block-Elemente, die als Übersetzungseinheit gelten
+    // Ziel-Elemente für Stift-Icons
     const BLOCK_SEL = 'p, h1, h2, h3, h4, h5, h6, li, td, th, dt, dd, figcaption, blockquote';
-    // Leaf-Elemente mit eigenem Text
     const LEAF_SEL  = 'a, button, label';
 
-    // Modus-Status aus sessionStorage wiederherstellen
-    let modeActive     = sessionStorage.getItem( 'cwt_translate_mode' ) === '1';
-    let currentText    = '';
-    let currentElement = null;
+    // Sprachdaten
+    const LANG_META = {
+        de: { label: 'Deutsch',    flag: '🇩🇪' },
+        en: { label: 'English',    flag: '🇬🇧' },
+        uk: { label: 'Українська', flag: '🇺🇦' },
+        fr: { label: 'Français',   flag: '🇫🇷' },
+        es: { label: 'Español',    flag: '🇪🇸' },
+        it: { label: 'Italiano',   flag: '🇮🇹' },
+        tr: { label: 'Türkçe',     flag: '🇹🇷' },
+        pl: { label: 'Polski',     flag: '🇵🇱' },
+    };
+
+    // Status
+    let modeActive      = sessionStorage.getItem( 'cwt_translate_mode' ) === '1';
+    let selectedElement = null;
+    let selectedText    = '';
+    let targetLang      = getFirstTargetLang();
 
     // -----------------------------------------------------------------------
-    // Boot: nach DOM-Ready
+    // Boot
     // -----------------------------------------------------------------------
     document.addEventListener( 'DOMContentLoaded', function () {
         buildToolbar();
@@ -33,7 +44,16 @@
     } );
 
     // -----------------------------------------------------------------------
-    // Toolbar
+    // Erste verfügbare Zielsprache ermitteln
+    // -----------------------------------------------------------------------
+    function getFirstTargetLang() {
+        const active  = cfg.activeLangs  || [ 'de', 'en', 'uk' ];
+        const defLang = cfg.defaultLang  || 'de';
+        return active.find( function ( l ) { return l !== defLang; } ) || 'en';
+    }
+
+    // -----------------------------------------------------------------------
+    // Toolbar-Button
     // -----------------------------------------------------------------------
     function buildToolbar() {
         const bar = document.createElement( 'div' );
@@ -56,11 +76,9 @@
         if ( modeActive ) {
             btn.textContent = '✎ Modus beenden';
             btn.classList.add( 'cwt-mode-btn--active' );
-            btn.setAttribute( 'aria-pressed', 'true' );
         } else {
             btn.textContent = '✎ Seite übersetzen';
             btn.classList.remove( 'cwt-mode-btn--active' );
-            btn.setAttribute( 'aria-pressed', 'false' );
         }
     }
 
@@ -80,17 +98,143 @@
 
     function activateMode() {
         document.body.classList.add( 'cwt-translate-active' );
+        buildSidebar();
         addPencilIcons();
     }
 
     function deactivateMode() {
         document.body.classList.remove( 'cwt-translate-active' );
+        clearSelectedElement();
         removePencilIcons();
-        closeModal();
+        removeSidebar();
     }
 
     // -----------------------------------------------------------------------
-    // Stift-Icons hinzufügen
+    // Sidebar aufbauen
+    // -----------------------------------------------------------------------
+    function buildSidebar() {
+        if ( document.getElementById( 'cwt-sidebar' ) ) return;
+
+        const active  = cfg.activeLangs  || [ 'de', 'en', 'uk' ];
+        const defLang = cfg.defaultLang  || 'de';
+
+        // Sprachoptionen für Select (ohne Standardsprache)
+        const options = active
+            .filter( function ( l ) { return l !== defLang; } )
+            .map( function ( l ) {
+                const meta = LANG_META[ l ] || { flag: '', label: l.toUpperCase() };
+                return '<option value="' + l + '"' + ( l === targetLang ? ' selected' : '' ) + '>'
+                     + meta.flag + ' ' + meta.label
+                     + '</option>';
+            } )
+            .join( '' );
+
+        const sidebar = document.createElement( 'div' );
+        sidebar.id = 'cwt-sidebar';
+        sidebar.setAttribute( 'translate', 'no' );
+
+        sidebar.innerHTML =
+            '<div class="cwt-sidebar__header">'
+          +     '<span class="cwt-sidebar__title">✎ Translation Editor</span>'
+          +     '<button class="cwt-sidebar__close" id="cwt-sidebar-close" type="button" aria-label="Schließen">&times;</button>'
+          + '</div>'
+          + '<div class="cwt-sidebar__body">'
+          +     '<div class="cwt-sidebar__lang-row">'
+          +         '<label class="cwt-sidebar__label" for="cwt-target-lang">Zielsprache</label>'
+          +         '<select class="cwt-sidebar__select" id="cwt-target-lang">' + options + '</select>'
+          +     '</div>'
+          +     '<div class="cwt-sidebar__hint" id="cwt-hint">'
+          +         'Klicke auf ein <strong>✎</strong> um einen Text zu übersetzen.'
+          +     '</div>'
+          +     '<div class="cwt-sidebar__fields" id="cwt-fields" style="display:none">'
+          +         '<div class="cwt-sidebar__field">'
+          +             '<label class="cwt-sidebar__label" id="cwt-from-label">🇩🇪 Originaltext</label>'
+          +             '<textarea class="cwt-sidebar__textarea cwt-sidebar__textarea--readonly" id="cwt-sidebar-de" readonly rows="4"></textarea>'
+          +             '<span class="cwt-sidebar__label" style="font-size:10px;margin-top:2px">Text</span>'
+          +         '</div>'
+          +         '<div class="cwt-sidebar__field">'
+          +             '<label class="cwt-sidebar__label" id="cwt-to-label">🇬🇧 English</label>'
+          +             '<textarea class="cwt-sidebar__textarea" id="cwt-sidebar-trans" rows="4" placeholder="Übersetzung eingeben…"></textarea>'
+          +             '<span class="cwt-sidebar__label" style="font-size:10px;margin-top:2px">Text</span>'
+          +         '</div>'
+          +         '<div class="cwt-sidebar__message" id="cwt-sidebar-msg"></div>'
+          +     '</div>'
+          + '</div>'
+          + '<div class="cwt-sidebar__footer" id="cwt-sidebar-footer" style="display:none">'
+          +     '<button class="cwt-sidebar__save-btn" id="cwt-sidebar-save" type="button">Speichern</button>'
+          + '</div>';
+
+        document.body.appendChild( sidebar );
+
+        // Events
+        document.getElementById( 'cwt-sidebar-close' ).addEventListener( 'click', function () {
+            modeActive = false;
+            sessionStorage.setItem( 'cwt_translate_mode', '0' );
+            syncToggleLabel();
+            deactivateMode();
+        } );
+
+        document.getElementById( 'cwt-target-lang' ).addEventListener( 'change', function () {
+            targetLang = this.value;
+            updateTargetLabel();
+            // Neue Sprache → vorhandene Übersetzung laden falls Element gewählt
+            if ( selectedText ) {
+                fetchAndFill( selectedText );
+            }
+        } );
+
+        document.getElementById( 'cwt-sidebar-save' ).addEventListener( 'click', doSave );
+    }
+
+    function removeSidebar() {
+        const s = document.getElementById( 'cwt-sidebar' );
+        if ( s ) s.remove();
+    }
+
+    function updateTargetLabel() {
+        const meta  = LANG_META[ targetLang ] || { flag: '', label: targetLang.toUpperCase() };
+        const label = document.getElementById( 'cwt-to-label' );
+        if ( label ) label.textContent = meta.flag + ' ' + meta.label;
+    }
+
+    // -----------------------------------------------------------------------
+    // Sidebar-Felder befüllen
+    // -----------------------------------------------------------------------
+    function showFields( show ) {
+        const fields  = document.getElementById( 'cwt-fields' );
+        const footer  = document.getElementById( 'cwt-sidebar-footer' );
+        const hint    = document.getElementById( 'cwt-hint' );
+        if ( fields ) fields.style.display  = show ? 'flex' : 'none';
+        if ( footer ) footer.style.display  = show ? 'block' : 'none';
+        if ( hint   ) hint.style.display    = show ? 'none' : 'block';
+    }
+
+    function setOriginalText( text ) {
+        const ta = document.getElementById( 'cwt-sidebar-de' );
+        if ( ta ) ta.value = text;
+    }
+
+    function setTranslationText( text ) {
+        const ta = document.getElementById( 'cwt-sidebar-trans' );
+        if ( ta ) ta.value = text;
+    }
+
+    function clearMsg() {
+        const msg = document.getElementById( 'cwt-sidebar-msg' );
+        if ( ! msg ) return;
+        msg.textContent = '';
+        msg.className   = 'cwt-sidebar__message';
+    }
+
+    function showMsg( text, type ) {
+        const msg = document.getElementById( 'cwt-sidebar-msg' );
+        if ( ! msg ) return;
+        msg.textContent = text;
+        msg.className   = 'cwt-sidebar__message cwt-sidebar__message--' + type + ' cwt-sidebar__message--visible';
+    }
+
+    // -----------------------------------------------------------------------
+    // Stift-Icons
     // -----------------------------------------------------------------------
     function addPencilIcons() {
         const candidates = [
@@ -103,9 +247,7 @@
 
             const text = getCleanText( el );
             if ( ! text || text.length < 2 ) return;
-            // Nur Elemente mit Buchstaben (keine reinen Zahlen / Symbole)
             if ( ! /\p{L}/u.test( text ) ) return;
-            // Kein doppeltes Icon
             if ( el.querySelector( '.cwt-pencil-btn' ) ) return;
 
             el.classList.add( 'cwt-has-pencil' );
@@ -113,17 +255,15 @@
             const btn = document.createElement( 'button' );
             btn.className = 'cwt-pencil-btn';
             btn.type      = 'button';
-            btn.innerHTML = '&#9998;'; // ✎
-            btn.title     = 'Text übersetzen';
+            btn.innerHTML = '&#9998;';
+            btn.title     = 'Übersetzen';
             btn.setAttribute( 'translate', 'no' );
-            btn.setAttribute( 'aria-label', 'Text übersetzen' );
 
-            // Text jetzt erfassen (vor Append), damit Pencil-Text nicht mitläuft
             const capturedText = text;
             btn.addEventListener( 'click', function ( e ) {
                 e.preventDefault();
                 e.stopPropagation();
-                openModal( capturedText, el );
+                selectElement( el, capturedText );
             } );
 
             el.appendChild( btn );
@@ -131,134 +271,77 @@
     }
 
     function removePencilIcons() {
-        document.querySelectorAll( '.cwt-pencil-btn' ).forEach( b => b.remove() );
-        document.querySelectorAll( '.cwt-has-pencil' ).forEach( el =>
-            el.classList.remove( 'cwt-has-pencil' )
-        );
+        document.querySelectorAll( '.cwt-pencil-btn' ).forEach( function ( b ) { b.remove(); } );
+        document.querySelectorAll( '.cwt-has-pencil' ).forEach( function ( el ) {
+            el.classList.remove( 'cwt-has-pencil' );
+        } );
     }
 
     function shouldSkip( el ) {
-        // Eigene Plugin-UI überspringen
-        if ( el.closest( '#wpadminbar' ) )          return true;
-        if ( el.closest( '#cwt-toolbar' ) )          return true;
-        if ( el.closest( '#cwt-modal-backdrop' ) )   return true;
-        if ( el.closest( '.cwt-switcher' ) )         return true;
-        // translate="no" respektieren
-        if ( el.getAttribute( 'translate' ) === 'no' )       return true;
-        if ( el.closest( '[translate="no"]' ) )               return true;
-        // Tag überspringen
-        if ( SKIP_TAGS.has( el.tagName.toLowerCase() ) )      return true;
-        // Kein verschachteltes Stift-Icon
+        if ( el.closest( '#wpadminbar' ) )        return true;
+        if ( el.closest( '#cwt-toolbar' ) )        return true;
+        if ( el.closest( '#cwt-sidebar' ) )        return true;
+        if ( el.closest( '.cwt-switcher' ) )       return true;
+        if ( el.getAttribute( 'translate' ) === 'no' )   return true;
+        if ( el.closest( '[translate="no"]' ) )           return true;
+        if ( SKIP_TAGS.has( el.tagName.toLowerCase() ) )  return true;
         if ( el.parentElement && el.parentElement.closest( '.cwt-has-pencil' ) ) return true;
-
         return false;
     }
 
-    /**
-     * Sauberen Text eines Elements holen, ohne Stift-Button-Text.
-     */
     function getCleanText( el ) {
         const clone = el.cloneNode( true );
-        clone.querySelectorAll( '.cwt-pencil-btn' ).forEach( b => b.remove() );
-        const raw = clone.innerText || clone.textContent || '';
-        return raw.trim().replace( /\s+/g, ' ' );
+        clone.querySelectorAll( '.cwt-pencil-btn' ).forEach( function ( b ) { b.remove(); } );
+        return ( clone.innerText || clone.textContent || '' ).trim().replace( /\s+/g, ' ' );
     }
 
     // -----------------------------------------------------------------------
-    // Modal öffnen
+    // Element auswählen
     // -----------------------------------------------------------------------
-    function openModal( originalText, el ) {
-        currentText    = originalText;
-        currentElement = el;
-        closeModal(); // Vorheriges Modal entfernen
+    function selectElement( el, text ) {
+        // Altes Element abwählen
+        clearSelectedElement();
 
-        const backdrop = document.createElement( 'div' );
-        backdrop.id = 'cwt-modal-backdrop';
-        backdrop.addEventListener( 'click', function ( e ) {
-            if ( e.target === backdrop ) closeModal();
-        } );
+        selectedElement = el;
+        selectedText    = text;
 
-        // Template
-        const modal = document.createElement( 'div' );
-        modal.id = 'cwt-modal';
-        modal.setAttribute( 'role',       'dialog' );
-        modal.setAttribute( 'aria-modal', 'true' );
-        modal.setAttribute( 'aria-label', 'Text übersetzen' );
-        modal.setAttribute( 'translate',  'no' );
+        el.classList.add( 'cwt-element-selected' );
 
-        modal.innerHTML =
-            '<div class="cwt-modal__header">' +
-                '<h2 class="cwt-modal__title">✎ Text übersetzen</h2>' +
-                '<button class="cwt-modal__close" id="cwt-modal-close" type="button" aria-label="Schließen">&times;</button>' +
-            '</div>' +
-            '<div class="cwt-modal__body">' +
-                '<div class="cwt-modal__field">' +
-                    '<label class="cwt-modal__label">🇩🇪 Originaltext (Deutsch)</label>' +
-                    '<textarea class="cwt-modal__textarea cwt-modal__textarea--readonly" id="cwt-modal-de" readonly rows="3">' + escHtml( originalText ) + '</textarea>' +
-                '</div>' +
-                '<div class="cwt-modal__field">' +
-                    '<label class="cwt-modal__label" for="cwt-modal-en">🇬🇧 Englisch</label>' +
-                    '<textarea class="cwt-modal__textarea" id="cwt-modal-en" rows="3" placeholder="Englische Übersetzung…"></textarea>' +
-                '</div>' +
-                '<div class="cwt-modal__field">' +
-                    '<label class="cwt-modal__label" for="cwt-modal-uk">🇺🇦 Ukrainisch</label>' +
-                    '<textarea class="cwt-modal__textarea" id="cwt-modal-uk" rows="3" placeholder="Ukrainische Übersetzung…"></textarea>' +
-                '</div>' +
-                '<div class="cwt-modal__message" id="cwt-modal-msg"></div>' +
-            '</div>' +
-            '<div class="cwt-modal__footer">' +
-                '<button class="cwt-modal__btn cwt-modal__btn--cancel" id="cwt-modal-cancel" type="button">Abbrechen</button>' +
-                '<button class="cwt-modal__btn cwt-modal__btn--save"   id="cwt-modal-save"   type="button">Speichern</button>' +
-            '</div>';
+        updateTargetLabel();
+        setOriginalText( text );
+        setTranslationText( '' );
+        clearMsg();
+        showFields( true );
 
-        backdrop.appendChild( modal );
-        document.body.appendChild( backdrop );
+        // Vorhandene Übersetzung laden
+        fetchAndFill( text );
 
-        // Events
-        modal.querySelector( '#cwt-modal-close' ).addEventListener( 'click', closeModal );
-        modal.querySelector( '#cwt-modal-cancel' ).addEventListener( 'click', closeModal );
-        modal.querySelector( '#cwt-modal-save' ).addEventListener( 'click', doSave );
-        document.addEventListener( 'keydown', onEscapeKey );
-
-        // Vorhandene Übersetzungen laden
-        fetchExisting( originalText );
-
-        // Fokus auf EN-Feld
+        // Sidebar-Textarea fokussieren
         setTimeout( function () {
-            const f = document.getElementById( 'cwt-modal-en' );
-            if ( f ) f.focus();
+            const ta = document.getElementById( 'cwt-sidebar-trans' );
+            if ( ta ) ta.focus();
         }, 80 );
+
+        // Sidebar ins Sichtfeld scrollen (mobile)
+        const sidebar = document.getElementById( 'cwt-sidebar' );
+        if ( sidebar ) sidebar.scrollTop = 0;
     }
 
-    function closeModal() {
-        const bd = document.getElementById( 'cwt-modal-backdrop' );
-        if ( bd ) bd.remove();
-        document.removeEventListener( 'keydown', onEscapeKey );
-        currentText    = '';
-        currentElement = null;
-    }
-
-    function onEscapeKey( e ) {
-        if ( e.key === 'Escape' ) closeModal();
-    }
-
-    function showMsg( text, type ) {
-        const el = document.getElementById( 'cwt-modal-msg' );
-        if ( ! el ) return;
-        el.textContent = text;
-        el.className   = 'cwt-modal__message cwt-modal__message--' + type + ' cwt-modal__message--visible';
-    }
-
-    function escHtml( str ) {
-        const d = document.createElement( 'div' );
-        d.textContent = str;
-        return d.innerHTML;
+    function clearSelectedElement() {
+        if ( selectedElement ) {
+            selectedElement.classList.remove( 'cwt-element-selected' );
+            selectedElement = null;
+            selectedText    = '';
+        }
     }
 
     // -----------------------------------------------------------------------
-    // AJAX: vorhandene Übersetzungen laden
+    // AJAX: vorhandene Übersetzung laden
     // -----------------------------------------------------------------------
-    function fetchExisting( originalText ) {
+    function fetchAndFill( originalText ) {
+        const ta = document.getElementById( 'cwt-sidebar-trans' );
+        if ( ta ) ta.placeholder = 'Lädt…';
+
         const fd = new FormData();
         fd.append( 'action',   'cwt_get_translation' );
         fd.append( 'nonce',    cfg.nonce );
@@ -267,26 +350,30 @@
         fetch( cfg.ajaxUrl, { method: 'POST', body: fd, credentials: 'same-origin' } )
             .then( function ( r ) { return r.json(); } )
             .then( function ( res ) {
+                if ( ta ) ta.placeholder = 'Übersetzung eingeben…';
                 if ( ! res.success ) return;
-                const t  = res.data.translations || {};
-                const en = document.getElementById( 'cwt-modal-en' );
-                const uk = document.getElementById( 'cwt-modal-uk' );
-                if ( en && t.en ) en.value = t.en;
-                if ( uk && t.uk ) uk.value = t.uk;
+                const translations = res.data.translations || {};
+                setTranslationText( translations[ targetLang ] || '' );
             } )
-            .catch( function () {} ); // Stille Fehlerbehandlung
+            .catch( function () {
+                if ( ta ) ta.placeholder = 'Übersetzung eingeben…';
+            } );
     }
 
     // -----------------------------------------------------------------------
-    // AJAX: Übersetzungen speichern
+    // AJAX: Übersetzung speichern
     // -----------------------------------------------------------------------
     function doSave() {
-        const enVal   = ( document.getElementById( 'cwt-modal-en' )?.value || '' ).trim();
-        const ukVal   = ( document.getElementById( 'cwt-modal-uk' )?.value || '' ).trim();
-        const saveBtn = document.getElementById( 'cwt-modal-save' );
+        const translated = ( document.getElementById( 'cwt-sidebar-trans' )?.value || '' ).trim();
+        const saveBtn    = document.getElementById( 'cwt-sidebar-save' );
 
-        if ( ! enVal && ! ukVal ) {
-            showMsg( 'Bitte mindestens eine Übersetzung eingeben.', 'error' );
+        if ( ! selectedText ) {
+            showMsg( 'Kein Text ausgewählt.', 'error' );
+            return;
+        }
+
+        if ( ! translated ) {
+            showMsg( 'Bitte eine Übersetzung eingeben.', 'error' );
             return;
         }
 
@@ -295,45 +382,32 @@
             saveBtn.textContent = '…';
         }
 
-        const tasks = [];
-        if ( enVal ) tasks.push( postTranslation( 'en', enVal ) );
-        if ( ukVal ) tasks.push( postTranslation( 'uk', ukVal ) );
+        const fd = new FormData();
+        fd.append( 'action',     'cwt_save_translation' );
+        fd.append( 'nonce',      cfg.nonce );
+        fd.append( 'original',   selectedText );
+        fd.append( 'lang',       targetLang );
+        fd.append( 'translated', translated );
+        fd.append( 'status',     'active' );
 
-        Promise.all( tasks )
-            .then( function ( results ) {
-                const allOk = results.every( function ( r ) { return r && r.success; } );
-
-                if ( allOk ) {
-                    showMsg( '✓ Erfolgreich gespeichert!', 'success' );
-                    setTimeout( closeModal, 1600 );
+        fetch( cfg.ajaxUrl, { method: 'POST', body: fd, credentials: 'same-origin' } )
+            .then( function ( r ) { return r.json(); } )
+            .then( function ( res ) {
+                if ( res.success ) {
+                    showMsg( '✓ Gespeichert!', 'success' );
                 } else {
-                    showMsg( 'Fehler beim Speichern. Bitte erneut versuchen.', 'error' );
-                    if ( saveBtn ) {
-                        saveBtn.disabled    = false;
-                        saveBtn.textContent = 'Speichern';
-                    }
+                    showMsg( res.data?.message || 'Fehler beim Speichern.', 'error' );
                 }
             } )
             .catch( function () {
-                showMsg( 'Netzwerkfehler. Bitte Seite neu laden.', 'error' );
+                showMsg( 'Netzwerkfehler. Bitte erneut versuchen.', 'error' );
+            } )
+            .finally( function () {
                 if ( saveBtn ) {
                     saveBtn.disabled    = false;
                     saveBtn.textContent = 'Speichern';
                 }
             } );
-    }
-
-    function postTranslation( lang, translated ) {
-        const fd = new FormData();
-        fd.append( 'action',     'cwt_save_translation' );
-        fd.append( 'nonce',      cfg.nonce );
-        fd.append( 'original',   currentText );
-        fd.append( 'lang',       lang );
-        fd.append( 'translated', translated );
-        fd.append( 'status',     'active' );
-
-        return fetch( cfg.ajaxUrl, { method: 'POST', body: fd, credentials: 'same-origin' } )
-            .then( function ( r ) { return r.json(); } );
     }
 
 } )();

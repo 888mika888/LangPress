@@ -18,7 +18,6 @@ class CWT_Admin {
         add_action( 'wp_ajax_cwt_update_status',     [ $this, 'ajax_update_status' ] );
         add_action( 'wp_ajax_cwt_delete_translation',[ $this, 'ajax_delete_translation' ] );
         add_action( 'wp_ajax_cwt_export',            [ $this, 'ajax_export' ] );
-        add_action( 'wp_ajax_cwt_import',            [ $this, 'ajax_import' ] );
         add_action( 'wp_ajax_cwt_clear_cache',       [ $this, 'ajax_clear_cache' ] );
         add_action( 'wp_ajax_cwt_reinstall_db',      [ $this, 'ajax_reinstall_db' ] );
         add_action( 'wp_ajax_cwt_get_translation',   [ $this, 'ajax_get_translation' ] );
@@ -446,10 +445,6 @@ class CWT_Admin {
         // phpcs:ignore WordPress.WP.AlternativeFunctions.json_encode_json_encode
         echo json_encode( $rows, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE );
         exit;
-    }
-
-    public function ajax_import(): void {
-        // Wird über POST-Formular abgehandelt
     }
 
     public function ajax_clear_cache(): void {

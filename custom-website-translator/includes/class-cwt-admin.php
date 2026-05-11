@@ -21,6 +21,7 @@ class CWT_Admin {
         add_action( 'wp_ajax_cwt_import',            [ $this, 'ajax_import' ] );
         add_action( 'wp_ajax_cwt_clear_cache',       [ $this, 'ajax_clear_cache' ] );
         add_action( 'wp_ajax_cwt_reinstall_db',      [ $this, 'ajax_reinstall_db' ] );
+        add_action( 'wp_ajax_cwt_get_translation',   [ $this, 'ajax_get_translation' ] );
 
         // Plugin-Aktionslinks
         add_filter( 'plugin_action_links_' . CWT_PLUGIN_BASENAME, [ $this, 'plugin_action_links' ] );
@@ -353,7 +354,9 @@ class CWT_Admin {
         $translated      = sanitize_textarea_field( wp_unslash( $_POST['translated'] ?? '' ) );
         $status          = sanitize_key( wp_unslash( $_POST['status'] ?? 'active' ) );
 
-        if ( $hash === '' || $lang === '' ) {
+        // Hash wird intern von upsert_translation() aus $original berechnet –
+        // kein Pflichtfeld mehr, damit der Frontend-Translate-Mode keinen Hash senden muss.
+        if ( $lang === '' || $original === '' ) {
             wp_send_json_error( [ 'message' => 'Missing parameters.' ] );
         }
 
@@ -469,6 +472,43 @@ class CWT_Admin {
 
         CWT_Database::instance()->install();
         wp_send_json_success( [ 'message' => 'DB neu installiert.' ] );
+    }
+
+    /**
+     * Vorhandene Übersetzungen für einen Originaltext laden.
+     * Wird vom Frontend-Translate-Mode aufgerufen.
+     */
+    public function ajax_get_translation(): void {
+        check_ajax_referer( 'cwt_admin_nonce', 'nonce' );
+
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_send_json_error( [ 'message' => 'Insufficient permissions.' ] );
+        }
+
+        $original = sanitize_textarea_field( wp_unslash( $_POST['original'] ?? '' ) );
+        if ( $original === '' ) {
+            wp_send_json_error( [ 'message' => 'Missing text.' ] );
+        }
+
+        $db           = CWT_Database::instance();
+        $hash         = $db->hash( $original );
+        $active_langs = (array) get_option( 'cwt_active_languages', [ 'de', 'en', 'uk' ] );
+        $default_lang = get_option( 'cwt_default_language', 'de' );
+        $translations = [];
+
+        foreach ( $active_langs as $lang ) {
+            if ( $lang === $default_lang ) {
+                continue;
+            }
+            $translated = $db->get_translation( $hash, $lang );
+            $translations[ $lang ] = $translated ?? '';
+        }
+
+        wp_send_json_success( [
+            'hash'         => $hash,
+            'original'     => $original,
+            'translations' => $translations,
+        ] );
     }
 
     // -------------------------------------------------------------------------

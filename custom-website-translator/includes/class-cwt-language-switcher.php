@@ -11,6 +11,7 @@ class CWT_Language_Switcher {
     private function __construct() {
         add_shortcode( 'custom_language_switcher', [ $this, 'render_shortcode' ] );
         add_action( 'wp_enqueue_scripts', [ $this, 'enqueue_assets' ] );
+        add_action( 'wp_enqueue_scripts', [ $this, 'enqueue_translate_mode' ] );
         add_action( 'wp_footer', [ $this, 'maybe_render_fixed' ] );
 
         // AJAX: Sprachenwechsel ohne Seiten-Reload
@@ -53,10 +54,47 @@ class CWT_Language_Switcher {
         );
 
         wp_localize_script( 'cwt-public', 'CWT', [
-            'ajaxUrl'       => admin_url( 'admin-ajax.php' ),
-            'nonce'         => wp_create_nonce( 'cwt_switch_lang' ),
-            'currentLang'   => CWT_Translator::instance()->get_current_language(),
-            'defaultLang'   => get_option( 'cwt_default_language', 'de' ),
+            'ajaxUrl'     => admin_url( 'admin-ajax.php' ),
+            'nonce'       => wp_create_nonce( 'cwt_switch_lang' ),
+            'currentLang' => CWT_Translator::instance()->get_current_language(),
+            'defaultLang' => get_option( 'cwt_default_language', 'de' ),
+        ] );
+    }
+
+    /**
+     * Translate-Mode Assets – nur für eingeloggte Administratoren.
+     * Lädt unabhängig von should_show_on_current_page().
+     */
+    public function enqueue_translate_mode(): void {
+        if ( ! is_user_logged_in() || ! current_user_can( 'manage_options' ) ) {
+            return;
+        }
+
+        // Public-Assets sicherstellen (falls Switcher auf dieser Seite deaktiviert)
+        wp_enqueue_style( 'cwt-public', CWT_PLUGIN_URL . 'public/public.css', [], CWT_VERSION );
+        wp_enqueue_script( 'cwt-public', CWT_PLUGIN_URL . 'public/public.js', [], CWT_VERSION, true );
+
+        wp_enqueue_style(
+            'cwt-translate-mode',
+            CWT_PLUGIN_URL . 'public/translate-mode.css',
+            [ 'cwt-public' ],
+            CWT_VERSION
+        );
+
+        wp_enqueue_script(
+            'cwt-translate-mode',
+            CWT_PLUGIN_URL . 'public/translate-mode.js',
+            [],
+            CWT_VERSION,
+            true
+        );
+
+        wp_localize_script( 'cwt-translate-mode', 'CWT_Translate', [
+            'ajaxUrl'     => admin_url( 'admin-ajax.php' ),
+            'nonce'       => wp_create_nonce( 'cwt_admin_nonce' ),
+            'currentLang' => CWT_Translator::instance()->get_current_language(),
+            'defaultLang' => get_option( 'cwt_default_language', 'de' ),
+            'activeLangs' => get_option( 'cwt_active_languages', [ 'de', 'en', 'uk' ] ),
         ] );
     }
 

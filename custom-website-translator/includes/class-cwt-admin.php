@@ -405,6 +405,11 @@ class CWT_Admin {
             $status = 'active';
         }
 
+        // Wenn Übersetzungstext vorhanden → automatisch aktivieren
+        if ( $translated !== '' && $status !== 'ignored' ) {
+            $status = 'active';
+        }
+
         $result = $db->upsert_translation( $original, $lang, $translated, $status, '', $post_id );
 
         if ( $result ) {

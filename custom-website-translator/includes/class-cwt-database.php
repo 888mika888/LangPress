@@ -184,7 +184,6 @@ class CWT_Database {
         } else {
             $data   = [
                 'original_text'   => $original_text,
-                'normalized_text' => $normalized,
                 'text_hash'       => $hash,
                 'language_code'   => $language_code,
                 'translated_text' => $translated_text,
@@ -193,9 +192,15 @@ class CWT_Database {
                 'created_at'      => $now,
                 'updated_at'      => $now,
             ];
-            $format = [ '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' ];
+            $format = [ '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' ];
 
-            if ( $post_id > 0 ) {
+            // normalized_text nur einfügen wenn Spalte existiert (Fallback für nicht-migrierte DBs)
+            if ( $this->column_exists( 'normalized_text' ) ) {
+                $data['normalized_text'] = $normalized;
+                $format[]                = '%s';
+            }
+
+            if ( $post_id > 0 && $this->column_exists( 'post_id' ) ) {
                 $data['post_id'] = $post_id;
                 $format[]        = '%d';
             }
@@ -211,6 +216,34 @@ class CWT_Database {
      */
     public function normalize( string $text ): string {
         return preg_replace( '/\s+/', ' ', trim( $text ) ) ?? trim( $text );
+    }
+
+    /**
+     * Prüft ob eine Spalte in der Übersetzungstabelle existiert.
+     * Ergebnis wird per wp_cache gecacht um wiederholte SHOW COLUMNS zu vermeiden.
+     */
+    private function column_exists( string $column ): bool {
+        $cache_key = 'cwt_col_' . $column;
+        $cached    = wp_cache_get( $cache_key, 'cwt' );
+        if ( $cached !== false ) {
+            return (bool) $cached;
+        }
+
+        global $wpdb;
+        $result = $wpdb->get_var(
+            $wpdb->prepare(
+                'SELECT COUNT(*) FROM information_schema.COLUMNS
+                 WHERE TABLE_SCHEMA = DATABASE()
+                   AND TABLE_NAME   = %s
+                   AND COLUMN_NAME  = %s',
+                $this->table_translations,
+                $column
+            )
+        );
+
+        $exists = (bool) $result;
+        wp_cache_set( $cache_key, $exists, 'cwt', 3600 );
+        return $exists;
     }
 
     /**

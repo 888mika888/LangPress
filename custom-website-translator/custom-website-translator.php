@@ -58,6 +58,15 @@ function cwt_init(): void {
 
     // Kernklassen initialisieren
     CWT_Database::instance();
+
+    // Auto-Migration: dbDelta ausführen wenn sich die Plugin-Version geändert hat.
+    // Damit werden neue Spalten (z.B. normalized_text, post_id) automatisch hinzugefügt,
+    // ohne dass der Admin deaktivieren/reaktivieren muss.
+    $stored = get_option( 'cwt_db_version', '0' );
+    if ( version_compare( $stored, CWT_VERSION, '<' ) ) {
+        CWT_Database::instance()->install();
+        update_option( 'cwt_db_version', CWT_VERSION );
+    }
     CWT_Translator::instance();
     CWT_Language_Switcher::instance();
     CWT_Frontend::instance();

@@ -18,9 +18,10 @@ class CWT_Admin {
         add_action( 'wp_ajax_cwt_update_status',     [ $this, 'ajax_update_status' ] );
         add_action( 'wp_ajax_cwt_delete_translation',[ $this, 'ajax_delete_translation' ] );
         add_action( 'wp_ajax_cwt_export',            [ $this, 'ajax_export' ] );
-        add_action( 'wp_ajax_cwt_clear_cache',       [ $this, 'ajax_clear_cache' ] );
-        add_action( 'wp_ajax_cwt_reinstall_db',      [ $this, 'ajax_reinstall_db' ] );
-        add_action( 'wp_ajax_cwt_get_translation',   [ $this, 'ajax_get_translation' ] );
+        add_action( 'wp_ajax_cwt_clear_cache',          [ $this, 'ajax_clear_cache' ] );
+        add_action( 'wp_ajax_cwt_reinstall_db',         [ $this, 'ajax_reinstall_db' ] );
+        add_action( 'wp_ajax_cwt_get_translation',      [ $this, 'ajax_get_translation' ] );
+        add_action( 'wp_ajax_cwt_get_page_translations',[ $this, 'ajax_get_page_translations' ] );
 
         // Plugin-Aktionslinks
         add_filter( 'plugin_action_links_' . CWT_PLUGIN_BASENAME, [ $this, 'plugin_action_links' ] );
@@ -347,15 +348,55 @@ class CWT_Admin {
             wp_send_json_error( [ 'message' => 'Insufficient permissions.' ] );
         }
 
-        $hash            = sanitize_text_field( wp_unslash( $_POST['hash'] ?? '' ) );
-        $lang            = sanitize_key( wp_unslash( $_POST['lang'] ?? '' ) );
-        $original        = sanitize_textarea_field( wp_unslash( $_POST['original'] ?? '' ) );
-        $translated      = sanitize_textarea_field( wp_unslash( $_POST['translated'] ?? '' ) );
-        $status          = sanitize_key( wp_unslash( $_POST['status'] ?? 'active' ) );
+        $original = sanitize_textarea_field( wp_unslash( $_POST['original'] ?? '' ) );
+        $post_id  = absint( $_POST['post_id'] ?? 0 );
 
-        // Hash wird intern von upsert_translation() aus $original berechnet –
-        // kein Pflichtfeld mehr, damit der Frontend-Translate-Mode keinen Hash senden muss.
-        if ( $lang === '' || $original === '' ) {
+        if ( $original === '' ) {
+            wp_send_json_error( [ 'message' => 'Missing original text.' ] );
+        }
+
+        $db           = CWT_Database::instance();
+        $active_langs = (array) get_option( 'cwt_active_languages', [ 'de', 'en', 'uk' ] );
+        $default_lang = get_option( 'cwt_default_language', 'de' );
+        $target_langs = array_filter( $active_langs, fn( $l ) => $l !== $default_lang );
+
+        // --- Multi-language save (from Translation Editor) ---
+        // The editor sends each target lang as its own POST key (e.g. POST['en'], POST['uk'])
+        $multi_langs = array_filter(
+            $target_langs,
+            fn( $l ) => isset( $_POST[ $l ] )
+        );
+
+        if ( ! empty( $multi_langs ) ) {
+            $saved = [];
+            foreach ( $multi_langs as $lang ) {
+                $translated = sanitize_textarea_field( wp_unslash( $_POST[ $lang ] ) );
+                if ( $translated === '' ) {
+                    continue; // Don't overwrite existing with empty
+                }
+                if ( $db->upsert_translation( $original, $lang, $translated, 'active', '', $post_id ) ) {
+                    $saved[] = $lang;
+                    CWT_Translator::instance()->invalidate_cache( $lang );
+                }
+            }
+
+            if ( empty( $saved ) ) {
+                wp_send_json_error( [ 'message' => __( 'Keine Übersetzungen eingegeben.', 'custom-website-translator' ) ] );
+            }
+
+            wp_send_json_success( [
+                'message' => __( 'Gespeichert!', 'custom-website-translator' ),
+                'langs'   => $saved,
+            ] );
+            return;
+        }
+
+        // --- Legacy single-language save (from admin translations table) ---
+        $lang       = sanitize_key( wp_unslash( $_POST['lang'] ?? '' ) );
+        $translated = sanitize_textarea_field( wp_unslash( $_POST['translated'] ?? '' ) );
+        $status     = sanitize_key( wp_unslash( $_POST['status'] ?? 'active' ) );
+
+        if ( $lang === '' ) {
             wp_send_json_error( [ 'message' => 'Missing parameters.' ] );
         }
 
@@ -364,8 +405,7 @@ class CWT_Admin {
             $status = 'active';
         }
 
-        $db     = CWT_Database::instance();
-        $result = $db->upsert_translation( $original, $lang, $translated, $status );
+        $result = $db->upsert_translation( $original, $lang, $translated, $status, '', $post_id );
 
         if ( $result ) {
             CWT_Translator::instance()->invalidate_cache( $lang );
@@ -467,6 +507,32 @@ class CWT_Admin {
 
         CWT_Database::instance()->install();
         wp_send_json_success( [ 'message' => 'DB neu installiert.' ] );
+    }
+
+    /**
+     * Alle Übersetzungen für eine Sprache/Seite liefern (für Inline-Sprachwechsel).
+     */
+    public function ajax_get_page_translations(): void {
+        check_ajax_referer( 'cwt_admin_nonce', 'nonce' );
+
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_send_json_error( [ 'message' => 'Insufficient permissions.' ] );
+        }
+
+        $lang    = sanitize_key( wp_unslash( $_POST['language_code'] ?? $_POST['lang'] ?? '' ) );
+        $post_id = absint( $_POST['post_id'] ?? 0 );
+
+        if ( $lang === '' ) {
+            wp_send_json_error( [ 'message' => 'Missing language_code.' ] );
+        }
+
+        $translations = CWT_Database::instance()->get_translations_for_language( $lang );
+
+        wp_send_json_success( [
+            'lang'         => $lang,
+            'post_id'      => $post_id,
+            'translations' => $translations,
+        ] );
     }
 
     /**

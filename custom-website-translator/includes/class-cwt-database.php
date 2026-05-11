@@ -37,19 +37,22 @@ class CWT_Database {
         $charset_collate = $wpdb->get_charset_collate();
 
         $sql_translations = "CREATE TABLE IF NOT EXISTS {$this->table_translations} (
-            id            BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
-            original_text LONGTEXT            NOT NULL,
-            text_hash     VARCHAR(64)         NOT NULL,
-            language_code VARCHAR(10)         NOT NULL,
-            translated_text LONGTEXT          NOT NULL DEFAULT '',
-            status        ENUM('active','ignored','pending') NOT NULL DEFAULT 'pending',
-            page_url      VARCHAR(2083)       NOT NULL DEFAULT '',
-            created_at    DATETIME            NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            updated_at    DATETIME            NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            id              BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+            post_id         BIGINT(20) UNSIGNED NULL DEFAULT NULL,
+            original_text   LONGTEXT            NOT NULL,
+            normalized_text LONGTEXT            NOT NULL DEFAULT '',
+            text_hash       VARCHAR(64)         NOT NULL,
+            language_code   VARCHAR(10)         NOT NULL,
+            translated_text LONGTEXT            NOT NULL DEFAULT '',
+            status          ENUM('active','ignored','pending') NOT NULL DEFAULT 'pending',
+            page_url        VARCHAR(2083)       NOT NULL DEFAULT '',
+            created_at      DATETIME            NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at      DATETIME            NOT NULL DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY (id),
             UNIQUE KEY hash_lang (text_hash(64), language_code),
             KEY status_idx (status),
-            KEY language_idx (language_code)
+            KEY language_idx (language_code),
+            KEY post_id_idx (post_id)
         ) $charset_collate;";
 
         $sql_settings = "CREATE TABLE IF NOT EXISTS {$this->table_settings} (
@@ -139,11 +142,14 @@ class CWT_Database {
         string $language_code,
         string $translated_text = '',
         string $status = 'pending',
-        string $page_url = ''
+        string $page_url = '',
+        int    $post_id = 0
     ): bool {
         global $wpdb;
 
-        $hash = $this->hash( $original_text );
+        $normalized = $this->normalize( $original_text );
+        $hash       = $this->hash( $original_text );
+        $now        = current_time( 'mysql' );
 
         $existing = $wpdb->get_var(
             $wpdb->prepare(
@@ -155,36 +161,56 @@ class CWT_Database {
         );
 
         if ( $existing ) {
+            $data   = [
+                'translated_text' => $translated_text,
+                'status'          => $status,
+                'page_url'        => $page_url,
+                'updated_at'      => $now,
+            ];
+            $format = [ '%s', '%s', '%s', '%s' ];
+
+            if ( $post_id > 0 ) {
+                $data['post_id'] = $post_id;
+                $format[]        = '%d';
+            }
+
             $result = $wpdb->update(
                 $this->table_translations,
-                [
-                    'translated_text' => $translated_text,
-                    'status'          => $status,
-                    'page_url'        => $page_url,
-                    'updated_at'      => current_time( 'mysql' ),
-                ],
+                $data,
                 [ 'id' => $existing ],
-                [ '%s', '%s', '%s', '%s' ],
+                $format,
                 [ '%d' ]
             );
         } else {
-            $result = $wpdb->insert(
-                $this->table_translations,
-                [
-                    'original_text'   => $original_text,
-                    'text_hash'       => $hash,
-                    'language_code'   => $language_code,
-                    'translated_text' => $translated_text,
-                    'status'          => $status,
-                    'page_url'        => $page_url,
-                    'created_at'      => current_time( 'mysql' ),
-                    'updated_at'      => current_time( 'mysql' ),
-                ],
-                [ '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' ]
-            );
+            $data   = [
+                'original_text'   => $original_text,
+                'normalized_text' => $normalized,
+                'text_hash'       => $hash,
+                'language_code'   => $language_code,
+                'translated_text' => $translated_text,
+                'status'          => $status,
+                'page_url'        => $page_url,
+                'created_at'      => $now,
+                'updated_at'      => $now,
+            ];
+            $format = [ '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' ];
+
+            if ( $post_id > 0 ) {
+                $data['post_id'] = $post_id;
+                $format[]        = '%d';
+            }
+
+            $result = $wpdb->insert( $this->table_translations, $data, $format );
         }
 
         return $result !== false;
+    }
+
+    /**
+     * Text normalisieren: trimmen, mehrfache Leerzeichen reduzieren.
+     */
+    public function normalize( string $text ): string {
+        return preg_replace( '/\s+/', ' ', trim( $text ) ) ?? trim( $text );
     }
 
     /**

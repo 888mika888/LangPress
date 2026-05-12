@@ -3,6 +3,19 @@
     'use strict';
 
     // -------------------------------------------------------------------------
+    // Toast notifications
+    // -------------------------------------------------------------------------
+    function showToast( message, type ) {
+        const toast = $( '<div class="cwt-toast cwt-toast--' + type + '">' + message + '</div>' );
+        $( 'body' ).append( toast );
+        setTimeout( () => toast.addClass( 'cwt-toast--visible' ), 10 );
+        setTimeout( function () {
+            toast.removeClass( 'cwt-toast--visible' );
+            setTimeout( () => toast.remove(), 300 );
+        }, 3000 );
+    }
+
+    // -------------------------------------------------------------------------
     // Farbwähler initialisieren
     // -------------------------------------------------------------------------
     $( '.cwt-color-picker' ).wpColorPicker( {
@@ -68,11 +81,11 @@
                 $cell.addClass( 'cwt-save-success' );
                 setTimeout( () => $cell.removeClass( 'cwt-save-success' ), 700 );
             } else {
-                alert( res.data?.message || CWT_Admin.i18n.error );
+                showToast( res.data?.message || CWT_Admin.i18n.error, 'error' );
             }
         } )
         .fail( function () {
-            alert( CWT_Admin.i18n.error );
+            showToast( CWT_Admin.i18n.error, 'error' );
         } )
         .always( function () {
             $btn.prop( 'disabled', false ).text( '✓' );
@@ -125,6 +138,9 @@
         .done( function ( res ) {
             if ( res.success ) {
                 $row.fadeOut( 300, () => $row.remove() );
+                showToast( 'Deleted.', 'success' );
+            } else {
+                showToast( res.data?.message || CWT_Admin.i18n.error, 'error' );
             }
         } );
     } );

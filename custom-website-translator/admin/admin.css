@@ -395,6 +395,9 @@
 /* ---------- Design-Vorschau ---------- */
 .cwt-preview-card {
     grid-column: 1 / -1;
+    position: sticky;
+    top: 32px; /* below WP admin bar */
+    z-index: 10;
 }
 
 /* ---------- Import/Export ---------- */
@@ -413,3 +416,30 @@
 .cwt-save-success {
     animation: cwt-pulse 0.6s;
 }
+
+/* ---------- Toast Notifications ---------- */
+.cwt-toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 999999;
+    padding: 10px 18px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #ffffff;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, .2);
+    opacity: 0;
+    transform: translateY(8px);
+    transition: opacity 0.25s, transform 0.25s;
+    pointer-events: none;
+    max-width: 320px;
+}
+
+.cwt-toast--visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.cwt-toast--success { background: #00a32a; }
+.cwt-toast--error   { background: #d63638; }

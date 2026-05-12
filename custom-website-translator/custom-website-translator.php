@@ -15,58 +15,43 @@
 
 defined( 'ABSPATH' ) || exit;
 
-// Plugin-Konstanten
-define( 'CWT_VERSION',     '1.2.0' );
-define( 'CWT_PLUGIN_FILE', __FILE__ );
-define( 'CWT_PLUGIN_DIR',  plugin_dir_path( __FILE__ ) );
-define( 'CWT_PLUGIN_URL',  plugin_dir_url( __FILE__ ) );
+define( 'CWT_VERSION',      '1.2.0' );
+define( 'CWT_PLUGIN_FILE',  __FILE__ );
+define( 'CWT_PLUGIN_DIR',   plugin_dir_path( __FILE__ ) );
+define( 'CWT_PLUGIN_URL',   plugin_dir_url( __FILE__ ) );
 define( 'CWT_PLUGIN_BASENAME', plugin_basename( __FILE__ ) );
 
-// Autoloader
+// Simple class map autoloader — keeps the includes folder tidy.
 spl_autoload_register( function ( string $class ): void {
-    $prefix = 'CWT_';
-    if ( strncmp( $class, $prefix, strlen( $prefix ) ) !== 0 ) {
-        return;
-    }
     $map = [
-        'CWT_Activator'        => CWT_PLUGIN_DIR . 'includes/class-cwt-activator.php',
-        'CWT_Database'         => CWT_PLUGIN_DIR . 'includes/class-cwt-database.php',
-        'CWT_Translator'       => CWT_PLUGIN_DIR . 'includes/class-cwt-translator.php',
-        'CWT_Language_Switcher'=> CWT_PLUGIN_DIR . 'includes/class-cwt-language-switcher.php',
-        'CWT_Frontend'         => CWT_PLUGIN_DIR . 'includes/class-cwt-frontend.php',
-        'CWT_Admin'            => CWT_PLUGIN_DIR . 'includes/class-cwt-admin.php',
+        'CWT_Activator'         => CWT_PLUGIN_DIR . 'includes/class-cwt-activator.php',
+        'CWT_Database'          => CWT_PLUGIN_DIR . 'includes/class-cwt-database.php',
+        'CWT_Translator'        => CWT_PLUGIN_DIR . 'includes/class-cwt-translator.php',
+        'CWT_Language_Switcher' => CWT_PLUGIN_DIR . 'includes/class-cwt-language-switcher.php',
+        'CWT_Frontend'          => CWT_PLUGIN_DIR . 'includes/class-cwt-frontend.php',
+        'CWT_Admin'             => CWT_PLUGIN_DIR . 'includes/class-cwt-admin.php',
     ];
     if ( isset( $map[ $class ] ) ) {
         require_once $map[ $class ];
     }
 } );
 
-// Aktivierungs- / Deaktivierungs-Hooks
 register_activation_hook( __FILE__, [ 'CWT_Activator', 'activate' ] );
 register_deactivation_hook( __FILE__, [ 'CWT_Activator', 'deactivate' ] );
 
-/**
- * Plugin-Bootstrap – wird nach 'plugins_loaded' ausgeführt.
- */
 function cwt_init(): void {
-    // Textdomain laden
-    load_plugin_textdomain(
-        'custom-website-translator',
-        false,
-        dirname( CWT_PLUGIN_BASENAME ) . '/languages'
-    );
+    load_plugin_textdomain( 'custom-website-translator', false, dirname( CWT_PLUGIN_BASENAME ) . '/languages' );
 
-    // Kernklassen initialisieren
     CWT_Database::instance();
 
-    // Auto-Migration: dbDelta ausführen wenn sich die Plugin-Version geändert hat.
-    // Damit werden neue Spalten (z.B. normalized_text, post_id) automatisch hinzugefügt,
-    // ohne dass der Admin deaktivieren/reaktivieren muss.
+    // Run dbDelta whenever the plugin version advances so new columns
+    // are added automatically — no manual deactivate/reactivate needed.
     $stored = get_option( 'cwt_db_version', '0' );
     if ( version_compare( $stored, CWT_VERSION, '<' ) ) {
         CWT_Database::instance()->install();
         update_option( 'cwt_db_version', CWT_VERSION );
     }
+
     CWT_Translator::instance();
     CWT_Language_Switcher::instance();
     CWT_Frontend::instance();

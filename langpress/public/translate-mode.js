@@ -27,6 +27,8 @@
         it: { label: 'Italiano',   flag: '🇮🇹' },
         tr: { label: 'Türkçe',     flag: '🇹🇷' },
         pl: { label: 'Polski',     flag: '🇵🇱' },
+        ru: { label: 'Русский',    flag: '🇷🇺' },
+        ar: { label: 'العربية',    flag: '🇸🇦' },
     };
 
     // Status
@@ -152,7 +154,7 @@
           +     '<div class="lp-sidebar__fields" id="lp-fields" style="display:none">'
           +         '<div class="lp-sidebar__field">'
           +             '<label class="lp-sidebar__label" id="lp-from-label">' + fromLabel + ' Originaltext</label>'
-          +             '<textarea class="lp-sidebar__textarea lp-sidebar__textarea--readonly" id="lp-sidebar-de" readonly rows="4"></textarea>'
+          +             '<textarea class="lp-sidebar__textarea lp-sidebar__textarea--readonly" id="lp-sidebar-original" readonly rows="4"></textarea>'
           +             '<span class="lp-sidebar__label" style="font-size:10px;margin-top:2px">Text</span>'
           +         '</div>'
           +         '<div class="lp-sidebar__field">'
@@ -213,7 +215,7 @@
     }
 
     function setOriginalText( text ) {
-        const ta = document.getElementById( 'lp-sidebar-de' );
+        const ta = document.getElementById( 'lp-sidebar-original' );
         if ( ta ) ta.value = text;
     }
 

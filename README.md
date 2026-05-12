@@ -1,4 +1,4 @@
-# Custom Website Translator
+# LangPress
 
 A WordPress plugin for multilingual websites with a visual, manual translation editor — no duplicate pages, no auto-translation APIs, full control over every translated string.
 
@@ -13,7 +13,7 @@ A WordPress plugin for multilingual websites with a visual, manual translation e
 
 ## What it does
 
-Custom Website Translator lets you translate a WordPress site into multiple languages by clicking directly on text in the live frontend. Translations are stored in a custom database table and applied dynamically at request time — no extra pages or posts are ever created.
+LangPress lets you translate a WordPress site into multiple languages by clicking directly on text in the live frontend. Translations are stored in a custom database table and applied dynamically at request time — no extra pages or posts are ever created.
 
 When you click **Translate Page** in the admin bar, a sidebar opens alongside your live page. You hover over any text, click the pencil icon, type your translation, and save. That's the whole workflow.
 
@@ -49,13 +49,13 @@ When you click **Translate Page** in the admin bar, a sidebar opens alongside yo
 
 **Via ZIP (easiest)**
 
-1. Download `custom-website-translator.zip` from [Releases](../../releases)
+1. Download `langpress.zip` from [Releases](../../releases)
 2. Go to **WordPress Admin → Plugins → Add New → Upload Plugin**
 3. Select the ZIP → **Install Now** → **Activate**
 
 **Via FTP**
 
-1. Copy the `custom-website-translator/` folder to `/wp-content/plugins/`
+1. Copy the `langpress/` folder to `/wp-content/plugins/`
 2. Go to **WordPress Admin → Plugins** and activate it
 
 The plugin creates its database tables and sets default options automatically on first activation.
@@ -112,12 +112,12 @@ There are three ways to add the language switcher to your site:
 
 **Shortcode** — paste this anywhere in your content or templates:
 ```
-[custom_language_switcher]
+[langpress_switcher]
 ```
 
 **Widget** — add the **Language Switcher** widget to any sidebar or footer area via **Appearance → Widgets**.
 
-When a visitor clicks a language, the page reloads with `?cwt_lang=en` (or `uk`) appended, a cookie is set, and the translated version is shown. The cookie keeps the language active as they navigate the site. Any text without a translation falls back to the original silently.
+When a visitor clicks a language, the page reloads with `?lp_lang=en` (or `uk`) appended, a cookie is set, and the translated version is shown. The cookie keeps the language active as they navigate the site. Any text without a translation falls back to the original silently.
 
 ---
 
@@ -138,8 +138,8 @@ When a visitor clicks a language, the page reloads with `?cwt_lang=en` (or `uk`)
 
 When a visitor loads a page in a non-default language:
 
-1. `CWT_Translator` detects the active language — URL param → cookie → site default
-2. `CWT_Frontend` starts PHP output buffering
+1. `LP_Translator` detects the active language — URL param → cookie → site default
+2. `LP_Frontend` starts PHP output buffering
 3. WordPress renders the full page HTML
 4. The buffer callback passes the HTML to `translate_html()`
 5. `DOMDocument` walks all visible text nodes and replaces any that have a translation in the in-memory cache
@@ -153,23 +153,23 @@ When a visitor loads a page in a non-default language:
 
 ### AJAX Endpoints
 
-All endpoints POST to `wp-admin/admin-ajax.php`. Admin endpoints require a valid `cwt_admin_nonce` nonce and the `manage_options` capability.
+All endpoints POST to `wp-admin/admin-ajax.php`. Admin endpoints require a valid `lp_admin_nonce` nonce and the `manage_options` capability.
 
 | Action | Auth | Key parameters |
 |---|---|---|
-| `cwt_get_translation` | admin | `original`, `post_id` |
-| `cwt_save_translation` | admin | `original`, `en`, `uk`, `post_id` |
-| `cwt_get_page_translations` | admin | `language_code`, `post_id` |
-| `cwt_update_status` | admin | `id`, `status` |
-| `cwt_delete_translation` | admin | `hash` |
-| `cwt_clear_cache` | admin | — |
-| `cwt_reinstall_db` | admin | — |
-| `cwt_export` | admin | `nonce` (GET) |
-| `cwt_switch_lang` | public | `lang`, `nonce` |
+| `lp_get_translation` | admin | `original`, `post_id` |
+| `lp_save_translation` | admin | `original`, `en`, `uk`, `post_id` |
+| `lp_get_page_translations` | admin | `language_code`, `post_id` |
+| `lp_update_status` | admin | `id`, `status` |
+| `lp_delete_translation` | admin | `hash` |
+| `lp_clear_cache` | admin | — |
+| `lp_reinstall_db` | admin | — |
+| `lp_export` | admin | `nonce` (GET) |
+| `lp_switch_lang` | public | `lang`, `nonce` |
 
 ### Database
 
-**`{prefix}cwt_translations`**
+**`{prefix}lp_translations`**
 
 | Column | Type | Notes |
 |---|---|---|
@@ -190,7 +190,7 @@ Unique index on `(text_hash, language_code)`.
 ### File structure
 
 ```
-custom-website-translator/
+langpress/
 ├── custom-website-translator.php        # Bootstrap, constants, autoloader
 ├── includes/
 │   ├── class-cwt-activator.php          # DB install, default options on activation
@@ -254,7 +254,7 @@ GNU General Public License v2 or later — see [https://www.gnu.org/licenses/gpl
 
 ### 1.0.1
 - Deleting a translation now removes all language entries, not just the first
-- `cwt_clear_cache` and `cwt_reinstall_db` endpoints added
+- `lp_clear_cache` and `lp_reinstall_db` endpoints added
 - Translations activate automatically on save
 - Fixed-position switcher now shows on all pages regardless of page filter setting
 

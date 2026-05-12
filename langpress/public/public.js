@@ -1,4 +1,4 @@
-/* global CWT */
+/* global LP */
 ( function () {
     'use strict';
 
@@ -11,16 +11,16 @@
     } );
 
     function initSwitchers() {
-        const switchers = document.querySelectorAll( '.cwt-switcher--dropdown' );
+        const switchers = document.querySelectorAll( '.lp-switcher--dropdown' );
 
         switchers.forEach( function ( switcher ) {
-            const trigger = switcher.querySelector( '.cwt-switcher__current' );
+            const trigger = switcher.querySelector( '.lp-switcher__current' );
             if ( ! trigger ) return;
 
             // Toggle beim Klick auf den Trigger
             trigger.addEventListener( 'click', function ( e ) {
                 e.stopPropagation();
-                const isOpen = switcher.classList.contains( 'cwt-switcher--open' );
+                const isOpen = switcher.classList.contains( 'lp-switcher--open' );
 
                 // Alle anderen schließen
                 closeAll();
@@ -52,13 +52,13 @@
         } );
 
         // Links: Sprache per AJAX setzen und dann weiterleiten
-        document.querySelectorAll( '.cwt-switcher__link' ).forEach( function ( link ) {
+        document.querySelectorAll( '.lp-switcher__link' ).forEach( function ( link ) {
             link.addEventListener( 'click', function ( e ) {
                 const lang = link.getAttribute( 'data-lang' );
-                if ( ! lang || ! window.CWT ) return;
+                if ( ! lang || ! window.LP ) return;
 
                 // Wenn gleiche Sprache: nichts tun
-                if ( lang === CWT.currentLang ) {
+                if ( lang === LP.currentLang ) {
                     e.preventDefault();
                     closeAll();
                     return;
@@ -66,36 +66,36 @@
 
                 // Cookie per AJAX setzen (non-blocking)
                 const formData = new FormData();
-                formData.append( 'action', 'cwt_switch_lang' );
-                formData.append( 'nonce',  CWT.nonce );
+                formData.append( 'action', 'lp_switch_lang' );
+                formData.append( 'nonce',  LP.nonce );
                 formData.append( 'lang',   lang );
 
                 // Fire-and-forget – Seite lädt sowieso neu über href
-                navigator.sendBeacon( CWT.ajaxUrl, formData );
+                navigator.sendBeacon( LP.ajaxUrl, formData );
             } );
         } );
     }
 
     function openSwitcher( switcher ) {
-        switcher.classList.add( 'cwt-switcher--open' );
+        switcher.classList.add( 'lp-switcher--open' );
         switcher.setAttribute( 'aria-expanded', 'true' );
 
-        const list = switcher.querySelector( '.cwt-switcher__list' );
+        const list = switcher.querySelector( '.lp-switcher__list' );
         if ( list ) {
             list.style.display = 'block';
             // Erstes nicht-aktives Element fokussieren
-            const firstLink = list.querySelector( '.cwt-switcher__link:not(.cwt-switcher__item--active .cwt-switcher__link)' );
+            const firstLink = list.querySelector( '.lp-switcher__link:not(.lp-switcher__item--active .lp-switcher__link)' );
             if ( firstLink ) firstLink.focus();
         }
     }
 
     function closeSwitcher( switcher ) {
-        switcher.classList.remove( 'cwt-switcher--open' );
+        switcher.classList.remove( 'lp-switcher--open' );
         switcher.removeAttribute( 'aria-expanded' );
     }
 
     function closeAll() {
-        document.querySelectorAll( '.cwt-switcher--open' ).forEach( closeSwitcher );
+        document.querySelectorAll( '.lp-switcher--open' ).forEach( closeSwitcher );
     }
 
     // -------------------------------------------------------------------------
@@ -104,17 +104,17 @@
     function setLangCookie( lang ) {
         const expires = new Date();
         expires.setDate( expires.getDate() + 30 );
-        document.cookie = 'cwt_language=' + encodeURIComponent( lang )
+        document.cookie = 'lp_language=' + encodeURIComponent( lang )
             + '; expires=' + expires.toUTCString()
             + '; path=/'
             + ( location.protocol === 'https:' ? '; Secure' : '' )
             + '; SameSite=Lax';
     }
 
-    // Bei direktem Link mit ?cwt_lang=… auch Cookie setzen
+    // Bei direktem Link mit ?lp_lang=… auch Cookie setzen
     ( function () {
         const params = new URLSearchParams( window.location.search );
-        const lang   = params.get( 'cwt_lang' );
+        const lang   = params.get( 'lp_lang' );
         if ( lang ) {
             setLangCookie( lang );
         }

@@ -4,10 +4,10 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Handles three frontend concerns:
  *   1. Admin-bar "Translate Page" button
- *   2. Visual translation editor mode (?cwt_translation_editor=1)
+ *   2. Visual translation editor mode (?lp_translation_editor=1)
  *   3. PHP output buffering that swaps text nodes for the active language
  */
-class CWT_Frontend {
+class LP_Frontend {
 
 	private static ?self $instance = null;
 
@@ -42,22 +42,22 @@ class CWT_Frontend {
 			. sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ?? '/' ) );
 
 		$editor_url = add_query_arg(
-			'cwt_translation_editor', '1',
-			remove_query_arg( 'cwt_translation_editor', $current_url )
+			'lp_translation_editor', '1',
+			remove_query_arg( 'lp_translation_editor', $current_url )
 		);
 
 		$wp_admin_bar->add_node( [
-			'id'    => 'cwt-translate-page',
+			'id'    => 'lp-translate-page',
 			'title' => '<span class="ab-icon dashicons dashicons-translation"></span> Translate Page',
 			'href'  => esc_url( $editor_url ),
-			'meta'  => [ 'class' => 'cwt-translate-page-btn', 'title' => 'Open the visual translation editor' ],
+			'meta'  => [ 'class' => 'lp-translate-page-btn', 'title' => 'Open the visual translation editor' ],
 		] );
 	}
 
 	private function is_editor_mode(): bool {
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		return isset( $_GET['cwt_translation_editor'] )
-			&& $_GET['cwt_translation_editor'] === '1'
+		return isset( $_GET['lp_translation_editor'] )
+			&& $_GET['lp_translation_editor'] === '1'
 			&& current_user_can( 'manage_options' );
 	}
 
@@ -74,21 +74,21 @@ class CWT_Frontend {
 	}
 
 	public function enqueue_editor_assets(): void {
-		wp_enqueue_style( 'cwt-translation-editor', CWT_PLUGIN_URL . 'public/translation-editor.css', [], CWT_VERSION );
-		wp_enqueue_script( 'cwt-translation-editor', CWT_PLUGIN_URL . 'public/translation-editor.js', [], CWT_VERSION, true );
+		wp_enqueue_style( 'lp-translation-editor', LP_PLUGIN_URL . 'public/translation-editor.css', [], LP_VERSION );
+		wp_enqueue_script( 'lp-translation-editor', LP_PLUGIN_URL . 'public/translation-editor.js', [], LP_VERSION, true );
 
-		$active_langs = (array) get_option( 'cwt_active_languages', [ 'de', 'en', 'uk' ] );
-		$default_lang = get_option( 'cwt_default_language', 'de' );
+		$active_langs = (array) get_option( 'lp_active_languages', [ 'de', 'en', 'uk' ] );
+		$default_lang = get_option( 'lp_default_language', 'de' );
 		$target_langs = array_values( array_filter( $active_langs, fn( $l ) => $l !== $default_lang ) );
 
-		wp_localize_script( 'cwt-translation-editor', 'CWT_Editor', [
+		wp_localize_script( 'lp-translation-editor', 'LP_Editor', [
 			'ajaxUrl'     => admin_url( 'admin-ajax.php' ),
-			'adminUrl'    => admin_url( 'admin.php?page=cwt-translations' ),
-			'nonce'       => wp_create_nonce( 'cwt_admin_nonce' ),
+			'adminUrl'    => admin_url( 'admin.php?page=lp-translations' ),
+			'nonce'       => wp_create_nonce( 'lp_admin_nonce' ),
 			'defaultLang' => $default_lang,
 			'targetLangs' => $target_langs,
 			'postId'      => (int) get_queried_object_id(),
-			'closeUrl'    => esc_url( remove_query_arg( 'cwt_translation_editor' ) ),
+			'closeUrl'    => esc_url( remove_query_arg( 'lp_translation_editor' ) ),
 		] );
 	}
 
@@ -97,86 +97,86 @@ class CWT_Frontend {
 			return;
 		}
 
-		$active_langs = (array) get_option( 'cwt_active_languages', [ 'de', 'en', 'uk' ] );
-		$default_lang = get_option( 'cwt_default_language', 'de' );
-		$all_langs    = CWT_Translator::available_languages();
+		$active_langs = (array) get_option( 'lp_active_languages', [ 'de', 'en', 'uk' ] );
+		$default_lang = get_option( 'lp_default_language', 'de' );
+		$all_langs    = LP_Translator::available_languages();
 		$target_langs = array_filter( $active_langs, fn( $l ) => $l !== $default_lang );
 		$def_meta     = $all_langs[ $default_lang ] ?? [ 'flag' => '', 'native' => strtoupper( $default_lang ) ];
 
 		?>
-		<div id="cwt-editor-sidebar" translate="no"
+		<div id="lp-editor-sidebar" translate="no"
 			 role="complementary"
-			 aria-label="<?php esc_attr_e( 'Translation Editor', 'custom-website-translator' ); ?>">
+			 aria-label="<?php esc_attr_e( 'Translation Editor', 'langpress' ); ?>">
 
-			<div class="cwt-sidebar-header">
-				<button class="cwt-sidebar-close" id="cwt-editor-close" type="button"
-						aria-label="<?php esc_attr_e( 'Close editor', 'custom-website-translator' ); ?>">&times;</button>
-				<span class="cwt-sidebar-title">
-					<?php esc_html_e( 'Translation Editor', 'custom-website-translator' ); ?>
+			<div class="lp-sidebar-header">
+				<button class="lp-sidebar-close" id="lp-editor-close" type="button"
+						aria-label="<?php esc_attr_e( 'Close editor', 'langpress' ); ?>">&times;</button>
+				<span class="lp-sidebar-title">
+					<?php esc_html_e( 'Translation Editor', 'langpress' ); ?>
 				</span>
-				<button class="cwt-sidebar-save-top" id="cwt-editor-save-top" type="button">
-					<?php esc_html_e( 'Save', 'custom-website-translator' ); ?>
+				<button class="lp-sidebar-save-top" id="lp-editor-save-top" type="button">
+					<?php esc_html_e( 'Save', 'langpress' ); ?>
 				</button>
 			</div>
 
-			<div class="cwt-sidebar-tabs" role="tablist">
-				<button class="cwt-sidebar-tab cwt-sidebar-tab--active" type="button"
+			<div class="lp-sidebar-tabs" role="tablist">
+				<button class="lp-sidebar-tab lp-sidebar-tab--active" type="button"
 						role="tab" aria-selected="true">
-					<?php esc_html_e( 'Translation Editor', 'custom-website-translator' ); ?>
+					<?php esc_html_e( 'Translation Editor', 'langpress' ); ?>
 				</button>
-				<button class="cwt-sidebar-tab" type="button"
+				<button class="lp-sidebar-tab" type="button"
 						role="tab" aria-selected="false">
-					<?php esc_html_e( 'String Translation', 'custom-website-translator' ); ?>
+					<?php esc_html_e( 'String Translation', 'langpress' ); ?>
 				</button>
 			</div>
 
-			<div class="cwt-sidebar-body">
+			<div class="lp-sidebar-body">
 
-				<div class="cwt-sidebar-lang-display">
-					<span class="cwt-sidebar-lang-pill">
+				<div class="lp-sidebar-lang-display">
+					<span class="lp-sidebar-lang-pill">
 						<?php echo esc_html( $def_meta['flag'] . ' ' . $def_meta['native'] ); ?>
 					</span>
 				</div>
 
-				<div class="cwt-sidebar-hint" id="cwt-editor-hint">
-					<p><?php esc_html_e( 'Hover over any text on the page and click the ✎ icon to translate it.', 'custom-website-translator' ); ?></p>
+				<div class="lp-sidebar-hint" id="lp-editor-hint">
+					<p><?php esc_html_e( 'Hover over any text on the page and click the ✎ icon to translate it.', 'langpress' ); ?></p>
 				</div>
 
-				<div class="cwt-sidebar-fields" id="cwt-editor-fields" style="display:none">
+				<div class="lp-sidebar-fields" id="lp-editor-fields" style="display:none">
 
-					<div class="cwt-sidebar-field">
-						<label class="cwt-sidebar-label">
+					<div class="lp-sidebar-field">
+						<label class="lp-sidebar-label">
 							<?php echo esc_html( $def_meta['flag'] . ' From ' . $def_meta['native'] ); ?>
 						</label>
-						<textarea class="cwt-sidebar-textarea cwt-sidebar-textarea--readonly"
-								  id="cwt-editor-de" readonly rows="3"
-								  placeholder="<?php esc_attr_e( 'Original text…', 'custom-website-translator' ); ?>"></textarea>
-						<small class="cwt-sidebar-sublabel">Text</small>
+						<textarea class="lp-sidebar-textarea lp-sidebar-textarea--readonly"
+								  id="lp-editor-de" readonly rows="3"
+								  placeholder="<?php esc_attr_e( 'Original text…', 'langpress' ); ?>"></textarea>
+						<small class="lp-sidebar-sublabel">Text</small>
 					</div>
 
 					<?php foreach ( $target_langs as $lang_code ) :
 						$meta = $all_langs[ $lang_code ] ?? [ 'flag' => '', 'native' => strtoupper( $lang_code ) ];
 					?>
-					<div class="cwt-sidebar-field">
-						<label class="cwt-sidebar-label" for="cwt-editor-<?php echo esc_attr( $lang_code ); ?>">
+					<div class="lp-sidebar-field">
+						<label class="lp-sidebar-label" for="lp-editor-<?php echo esc_attr( $lang_code ); ?>">
 							<?php echo esc_html( $meta['flag'] . ' To ' . $meta['native'] ); ?>
 						</label>
-						<textarea class="cwt-sidebar-textarea"
-								  id="cwt-editor-<?php echo esc_attr( $lang_code ); ?>"
+						<textarea class="lp-sidebar-textarea"
+								  id="lp-editor-<?php echo esc_attr( $lang_code ); ?>"
 								  rows="3"
 								  placeholder="<?php echo esc_attr( $meta['native'] . ' translation…' ); ?>"></textarea>
-						<small class="cwt-sidebar-sublabel">Text</small>
+						<small class="lp-sidebar-sublabel">Text</small>
 					</div>
 					<?php endforeach; ?>
 
-					<div id="cwt-editor-msg" class="cwt-sidebar-message"></div>
+					<div id="lp-editor-msg" class="lp-sidebar-message"></div>
 
 				</div>
 			</div>
 
-			<div class="cwt-sidebar-footer" id="cwt-editor-footer" style="display:none">
-				<button class="cwt-sidebar-save-btn" id="cwt-editor-save" type="button">
-					<?php esc_html_e( 'Save', 'custom-website-translator' ); ?>
+			<div class="lp-sidebar-footer" id="lp-editor-footer" style="display:none">
+				<button class="lp-sidebar-save-btn" id="lp-editor-save" type="button">
+					<?php esc_html_e( 'Save', 'langpress' ); ?>
 				</button>
 			</div>
 
@@ -185,7 +185,7 @@ class CWT_Frontend {
 	}
 
 	public function start_output_buffer(): void {
-		if ( CWT_Translator::instance()->is_default_language() ) {
+		if ( LP_Translator::instance()->is_default_language() ) {
 			return;
 		}
 		ob_start( [ $this, 'process_output' ] );
@@ -195,7 +195,7 @@ class CWT_Frontend {
 		if ( trim( $html ) === '' || $this->is_non_html_request() ) {
 			return $html;
 		}
-		return CWT_Translator::instance()->translate_html( $html );
+		return LP_Translator::instance()->translate_html( $html );
 	}
 
 	private function is_non_html_request(): bool {
@@ -218,18 +218,18 @@ class CWT_Frontend {
 	 * Throttled to once per URL per day via a transient.
 	 */
 	public function maybe_register_texts(): void {
-		if ( ! CWT_Translator::instance()->is_default_language() ) {
+		if ( ! LP_Translator::instance()->is_default_language() ) {
 			return;
 		}
 
 		$page_url  = $this->get_current_url();
-		$trans_key = 'cwt_scanned_' . md5( $page_url );
+		$trans_key = 'lp_scanned_' . md5( $page_url );
 
 		if ( get_transient( $trans_key ) ) {
 			return;
 		}
 
-		$translator = CWT_Translator::instance();
+		$translator = LP_Translator::instance();
 
 		ob_start( function ( string $html ) use ( $translator, $page_url, $trans_key ): string {
 			$this->extract_and_register_texts( $html, $translator, $page_url );
@@ -238,7 +238,7 @@ class CWT_Frontend {
 		} );
 	}
 
-	private function extract_and_register_texts( string $html, CWT_Translator $translator, string $page_url ): void {
+	private function extract_and_register_texts( string $html, LP_Translator $translator, string $page_url ): void {
 		if ( trim( $html ) === '' ) {
 			return;
 		}

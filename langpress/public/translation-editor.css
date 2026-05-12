@@ -8,19 +8,19 @@
    ========================================================= */
 
 /* ---------- Body shift when editor is active ---------- */
-body.cwt-editor-active {
+body.lp-editor-active {
     margin-left: 340px !important;
     box-sizing: border-box;
 }
 
 /* Keep admin bar full width but shift it */
-body.cwt-editor-active #wpadminbar {
+body.lp-editor-active #wpadminbar {
     left: 340px !important;
     width: calc(100% - 340px) !important;
 }
 
 /* ---------- Sidebar ---------- */
-#cwt-editor-sidebar {
+#lp-editor-sidebar {
     position: fixed;
     top: 0;
     left: 0;
@@ -38,38 +38,38 @@ body.cwt-editor-active #wpadminbar {
 }
 
 /* Admin bar offset */
-.admin-bar #cwt-editor-sidebar {
+.admin-bar #lp-editor-sidebar {
     top: 32px;
     height: calc(100vh - 32px);
 }
 
 @media screen and (max-width: 782px) {
-    .admin-bar #cwt-editor-sidebar {
+    .admin-bar #lp-editor-sidebar {
         top: 46px;
         height: calc(100vh - 46px);
     }
-    body.cwt-editor-active #wpadminbar {
+    body.lp-editor-active #wpadminbar {
         left: 0 !important;
         width: 100% !important;
     }
-    body.cwt-editor-active {
+    body.lp-editor-active {
         margin-left: 0 !important;
     }
-    #cwt-editor-sidebar {
+    #lp-editor-sidebar {
         width: 100%;
         height: 50vh;
         top: auto;
         bottom: 0;
         box-shadow: 0 -4px 20px rgba(0, 0, 0, .2);
     }
-    .admin-bar #cwt-editor-sidebar {
+    .admin-bar #lp-editor-sidebar {
         top: auto;
         height: 50vh;
     }
 }
 
 /* --- Header --- */
-.cwt-sidebar-header {
+.lp-sidebar-header {
     display: flex;
     align-items: center;
     gap: 8px;
@@ -80,7 +80,7 @@ body.cwt-editor-active #wpadminbar {
     min-height: 46px;
 }
 
-.cwt-sidebar-close {
+.lp-sidebar-close {
     width: 28px;
     height: 28px;
     padding: 0;
@@ -98,9 +98,9 @@ body.cwt-editor-active #wpadminbar {
     transition: opacity 0.12s, background 0.12s;
     flex-shrink: 0;
 }
-.cwt-sidebar-close:hover { opacity: 1; background: rgba(255,255,255,.15); }
+.lp-sidebar-close:hover { opacity: 1; background: rgba(255,255,255,.15); }
 
-.cwt-sidebar-title {
+.lp-sidebar-title {
     font-size: 13px;
     font-weight: 700;
     flex: 1;
@@ -109,7 +109,7 @@ body.cwt-editor-active #wpadminbar {
     text-overflow: ellipsis;
 }
 
-.cwt-sidebar-save-top {
+.lp-sidebar-save-top {
     padding: 5px 14px;
     background: #0073aa;
     color: #ffffff;
@@ -122,18 +122,18 @@ body.cwt-editor-active #wpadminbar {
     white-space: nowrap;
     flex-shrink: 0;
 }
-.cwt-sidebar-save-top:hover    { background: #005a87; }
-.cwt-sidebar-save-top:disabled { background: #a7aaad; cursor: not-allowed; }
+.lp-sidebar-save-top:hover    { background: #005a87; }
+.lp-sidebar-save-top:disabled { background: #a7aaad; cursor: not-allowed; }
 
 /* --- Tabs --- */
-.cwt-sidebar-tabs {
+.lp-sidebar-tabs {
     display: flex;
     border-bottom: 2px solid #e0e0e0;
     flex-shrink: 0;
     background: #f6f7f7;
 }
 
-.cwt-sidebar-tab {
+.lp-sidebar-tab {
     flex: 1;
     padding: 9px 6px;
     font-size: 11px;
@@ -147,14 +147,14 @@ body.cwt-editor-active #wpadminbar {
     text-align: center;
     transition: color 0.15s;
 }
-.cwt-sidebar-tab--active {
+.lp-sidebar-tab--active {
     color: #0073aa;
     border-bottom-color: #0073aa;
 }
-.cwt-sidebar-tab:hover:not(.cwt-sidebar-tab--active) { color: #1d2327; }
+.lp-sidebar-tab:hover:not(.lp-sidebar-tab--active) { color: #1d2327; }
 
 /* --- Scrollable body --- */
-.cwt-sidebar-body {
+.lp-sidebar-body {
     flex: 1;
     overflow-y: auto;
     padding: 14px;
@@ -164,12 +164,12 @@ body.cwt-editor-active #wpadminbar {
 }
 
 /* --- Language display pill --- */
-.cwt-sidebar-lang-display {
+.lp-sidebar-lang-display {
     display: flex;
     align-items: center;
 }
 
-.cwt-sidebar-lang-pill {
+.lp-sidebar-lang-pill {
     display: inline-flex;
     align-items: center;
     gap: 5px;
@@ -183,7 +183,7 @@ body.cwt-editor-active #wpadminbar {
 }
 
 /* --- Hint (no element selected) --- */
-.cwt-sidebar-hint {
+.lp-sidebar-hint {
     background: #f6f7f7;
     border: 1px dashed #c3c4c7;
     border-radius: 6px;
@@ -195,15 +195,15 @@ body.cwt-editor-active #wpadminbar {
 }
 
 /* --- Fields --- */
-.cwt-sidebar-fields {
+.lp-sidebar-fields {
     display: flex;
     flex-direction: column;
     gap: 14px;
 }
 
-.cwt-sidebar-field { display: flex; flex-direction: column; gap: 4px; }
+.lp-sidebar-field { display: flex; flex-direction: column; gap: 4px; }
 
-.cwt-sidebar-label {
+.lp-sidebar-label {
     font-size: 11px;
     font-weight: 700;
     text-transform: uppercase;
@@ -214,13 +214,13 @@ body.cwt-editor-active #wpadminbar {
     gap: 4px;
 }
 
-.cwt-sidebar-sublabel {
+.lp-sidebar-sublabel {
     font-size: 10px;
     color: #a7aaad;
     margin-top: 1px;
 }
 
-.cwt-sidebar-textarea {
+.lp-sidebar-textarea {
     width: 100%;
     box-sizing: border-box;
     padding: 9px 11px;
@@ -235,12 +235,12 @@ body.cwt-editor-active #wpadminbar {
     background: #ffffff;
     transition: border-color 0.15s, box-shadow 0.15s;
 }
-.cwt-sidebar-textarea:focus {
+.lp-sidebar-textarea:focus {
     border-color: #0073aa;
     outline: none;
     box-shadow: 0 0 0 2px rgba(0, 115, 170, .2);
 }
-.cwt-sidebar-textarea--readonly {
+.lp-sidebar-textarea--readonly {
     background: #f6f7f7;
     color: #50575e;
     cursor: default;
@@ -248,26 +248,26 @@ body.cwt-editor-active #wpadminbar {
 }
 
 /* --- Message --- */
-.cwt-sidebar-message {
+.lp-sidebar-message {
     padding: 8px 12px;
     border-radius: 4px;
     font-size: 12px;
     font-weight: 600;
     display: none;
 }
-.cwt-sidebar-message--visible  { display: block; }
-.cwt-sidebar-message--success  { background: #d4edda; color: #155724; border: 1px solid #b8dfc5; }
-.cwt-sidebar-message--error    { background: #f8d7da; color: #721c24; border: 1px solid #f1aeb5; }
-.cwt-sidebar-message--loading  { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+.lp-sidebar-message--visible  { display: block; }
+.lp-sidebar-message--success  { background: #d4edda; color: #155724; border: 1px solid #b8dfc5; }
+.lp-sidebar-message--error    { background: #f8d7da; color: #721c24; border: 1px solid #f1aeb5; }
+.lp-sidebar-message--loading  { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
 
 /* --- Footer --- */
-.cwt-sidebar-footer {
+.lp-sidebar-footer {
     padding: 12px 14px;
     border-top: 1px solid #e0e0e0;
     background: #f6f7f7;
     flex-shrink: 0;
 }
-.cwt-sidebar-save-btn {
+.lp-sidebar-save-btn {
     width: 100%;
     padding: 10px;
     background: #0073aa;
@@ -279,43 +279,43 @@ body.cwt-editor-active #wpadminbar {
     cursor: pointer;
     transition: background 0.15s;
 }
-.cwt-sidebar-save-btn:hover    { background: #005a87; }
-.cwt-sidebar-save-btn:disabled { background: #a7aaad; cursor: not-allowed; }
+.lp-sidebar-save-btn:hover    { background: #005a87; }
+.lp-sidebar-save-btn:disabled { background: #a7aaad; cursor: not-allowed; }
 
 /* ---------- Translatable elements (pencil hover area) ---------- */
-.cwt-translatable {
+.lp-translatable {
     position: relative !important;
     cursor: pointer !important;
 }
 
-.cwt-translatable:hover {
+.lp-translatable:hover {
     outline: 2px solid rgba(0, 115, 170, .5) !important;
     outline-offset: 2px !important;
     background-color: rgba(0, 115, 170, .03) !important;
 }
 
 /* Selected element */
-.cwt-element-selected {
+.lp-element-selected {
     outline: 2px solid #0073aa !important;
     outline-offset: 2px !important;
     background-color: rgba(0, 115, 170, .06) !important;
 }
 
 /* Post-save success flash */
-@keyframes cwt-saved-flash {
+@keyframes lp-saved-flash {
     0%   { outline-color: #00a32a; background-color: rgba(0,163,42,.1); }
     70%  { outline-color: #00a32a; background-color: rgba(0,163,42,.06); }
     100% { outline-color: #0073aa; background-color: rgba(0,115,170,.06); }
 }
-.cwt-element-saved {
+.lp-element-saved {
     outline: 2px solid #00a32a !important;
     outline-offset: 2px !important;
     background-color: rgba(0, 163, 42, .08) !important;
-    animation: cwt-saved-flash 1.2s ease forwards !important;
+    animation: lp-saved-flash 1.2s ease forwards !important;
 }
 
 /* --- Pencil icon — positioned inside top-right to avoid viewport clipping --- */
-.cwt-pencil {
+.lp-pencil {
     position: absolute !important;
     top: 4px !important;
     right: 4px !important;
@@ -339,19 +339,19 @@ body.cwt-editor-active #wpadminbar {
     opacity: 0.85 !important;
 }
 
-.cwt-translatable:hover .cwt-pencil {
+.lp-translatable:hover .lp-pencil {
     display: flex !important;
     opacity: 1 !important;
 }
 
-.cwt-pencil:hover {
+.lp-pencil:hover {
     background: #005a87 !important;
     transform: scale(1.1) !important;
     opacity: 1 !important;
 }
 
 /* --- String Translation panel (tab 2) --- */
-.cwt-string-panel {
+.lp-string-panel {
     display: flex;
     flex-direction: column;
     gap: 12px;
@@ -361,21 +361,21 @@ body.cwt-editor-active #wpadminbar {
     border-radius: 6px;
 }
 
-.cwt-string-panel__title {
+.lp-string-panel__title {
     font-size: 13px;
     font-weight: 700;
     color: #1d2327;
     margin: 0;
 }
 
-.cwt-string-panel__text {
+.lp-string-panel__text {
     font-size: 12px;
     color: #646970;
     line-height: 1.6;
     margin: 0;
 }
 
-.cwt-string-panel__link {
+.lp-string-panel__link {
     display: inline-block;
     padding: 7px 14px;
     background: #0073aa;
@@ -387,19 +387,19 @@ body.cwt-editor-active #wpadminbar {
     width: fit-content;
     transition: background 0.15s;
 }
-.cwt-string-panel__link:hover { background: #005a87; color: #fff; }
+.lp-string-panel__link:hover { background: #005a87; color: #fff; }
 
 /* ---------- Admin Bar Button ---------- */
-#wpadminbar #wp-admin-bar-cwt-translate-page > .ab-item {
+#wpadminbar #wp-admin-bar-lp-translate-page > .ab-item {
     color: #eaaf36 !important;
     font-weight: 600;
 }
-#wpadminbar #wp-admin-bar-cwt-translate-page > .ab-item:hover,
-#wpadminbar #wp-admin-bar-cwt-translate-page.hover > .ab-item {
+#wpadminbar #wp-admin-bar-lp-translate-page > .ab-item:hover,
+#wpadminbar #wp-admin-bar-lp-translate-page.hover > .ab-item {
     color: #fff !important;
     background: #0073aa !important;
 }
-#wpadminbar #wp-admin-bar-cwt-translate-page .ab-icon::before {
+#wpadminbar #wp-admin-bar-lp-translate-page .ab-icon::before {
     content: '\f326';
     top: 2px;
 }

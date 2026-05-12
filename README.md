@@ -7,17 +7,28 @@ A WordPress plugin for multilingual websites with a visual, manual translation e
 ![License](https://img.shields.io/badge/License-GPL%20v2-green)
 ![Version](https://img.shields.io/badge/Version-1.2.0-orange)
 
-> **Note:** This plugin was built for a specific use case — a multilingual website that needed German, English, and Ukrainian — and is shared as-is. It is not actively maintained. Pull requests are welcome, but response times may vary.
+> **Note:** LangPress was originally built for a specific multilingual website using German, English, and Ukrainian. It is shared as-is as an open-source project. It is not actively maintained, but pull requests and improvements are welcome.
 
 ---
 
 ## What it does
 
 LangPress lets you translate a WordPress site into multiple languages by clicking directly on text in the live frontend. Translations are stored in a custom database table and applied dynamically at request time — no extra pages or posts are ever created.
+Default configured languages:
+- German
+- English
+- Ukrainian
 
-**Ships with:** German (default), English, Ukrainian  
-**Also available:** French, Spanish, Italian, Turkish, Polish, Russian, Arabic
+Additional selectable languages:
+- French
+- Spanish
+- Italian
+- Turkish
+- Polish
+- Russian
+- Arabic
 
+Note: Only the admin UI translation files for English are currently included. Website translations are created manually by the site administrator.
 ---
 
 ## Features
@@ -31,7 +42,7 @@ LangPress lets you translate a WordPress site into multiple languages by clickin
 - **Auto-activation** — saving a translation makes it live immediately
 - **Auto-migration** — database schema updates run automatically on version change
 - **English admin UI** — admin panels switch to English when WordPress is set to English; German otherwise
-- **Secure** — nonces, capability checks, prepared statements, sanitized inputs throughout
+- **Security-conscious** — uses nonces, capability checks, prepared statements, and input/output sanitization.
 
 ---
 
@@ -254,20 +265,25 @@ langpress/
 
 Pull requests are welcome.
 
-This is a personal project and is not actively maintained, so response times may vary
-Please make sure that PHP code follows the [WordPress Coding Standards](https://developer.wordpress.org/coding-standards/wordpress-coding-standards/)
+This is a personal project and is not actively maintained, so response times may vary.
 
-LangPress was created because I struggled to find a simple translation and language-switching plugin that fit my needs. I hope it can be useful for others as well
-Contributions, improvements, updated versions, or even a fully upgraded plugin based on LangPress are very welcome :)
+Please make sure that PHP code follows the [WordPress Coding Standards](https://developer.wordpress.org/coding-standards/wordpress-coding-standards/).
 
-When I have time, I will review reported issues and try to fix them
-I hope this open-source project can grow and evolve with the WordPress community
+LangPress was created because I struggled to find a simple translation and language-switching plugin that fit my needs. I hope it can be useful for others as well.
+
+Contributions, improvements, updated versions, or even a fully upgraded plugin based on LangPress are very welcome.
+
+When I have time, I will review reported issues and try to fix them.
+
+I hope this open-source project can grow and evolve with the WordPress community.
 
 ---
 
 ## License
 
-GNU General Public License v2 or later — see [https://www.gnu.org/licenses/gpl-2.0.html](https://www.gnu.org/licenses/gpl-2.0.html).
+LangPress is licensed under the GNU General Public License v2.0 or later.
+
+See the [LICENSE](LICENSE) file for details.
 
 ---
 

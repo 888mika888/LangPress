@@ -1,11 +1,11 @@
 <?php
 /**
  * Plugin Name: Custom Website Translator
- * Plugin URI:  https://example.com/custom-website-translator
- * Description: Professionelles mehrsprachiges Übersetzungs-Plugin mit manueller Verwaltung. Unterstützt Deutsch, Englisch und Ukrainisch ohne Seitenduplikate.
+ * Plugin URI:  https://github.com/888mika888/PluginWP
+ * Description: Multilingual WordPress plugin with a visual translation editor. Supports German, English and Ukrainian without creating duplicate pages.
  * Version:     1.2.0
- * Author:      Your Name
- * Author URI:  https://example.com
+ * Author:      888mika888
+ * Author URI:  https://github.com/888mika888
  * Text Domain: custom-website-translator
  * Domain Path: /languages
  * Requires at least: 6.0

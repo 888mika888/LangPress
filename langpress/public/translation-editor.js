@@ -216,26 +216,33 @@
         setSaving( true );
         showMsg( 'Saving…', 'loading' );
 
-        const fd = new FormData();
-        fd.append( 'action',   'lp_save_translation' );
-        fd.append( 'nonce',    cfg.nonce );
-        fd.append( 'original', selectedText );
-        if ( cfg.postId ) fd.append( 'post_id', cfg.postId );
-        Object.entries( translations ).forEach( ( [ lang, val ] ) => fd.append( lang, val ) );
+        // Send one request per language (same format as the floating quick-translate mode).
+        const requests = Object.entries( translations ).map( function ( [ lang, val ] ) {
+            const fd = new FormData();
+            fd.append( 'action',     'lp_save_translation' );
+            fd.append( 'nonce',      cfg.nonce );
+            fd.append( 'original',   selectedText );
+            fd.append( 'lang',       lang );
+            fd.append( 'translated', val );
+            fd.append( 'status',     'active' );
+            if ( cfg.postId ) fd.append( 'post_id', cfg.postId );
+            return fetch( cfg.ajaxUrl, { method: 'POST', body: fd, credentials: 'same-origin' } )
+                .then( function ( r ) { return r.json(); } );
+        } );
 
-        fetch( cfg.ajaxUrl, { method: 'POST', body: fd, credentials: 'same-origin' } )
-            .then( r => r.json() )
-            .then( function ( res ) {
+        Promise.all( requests )
+            .then( function ( results ) {
                 setSaving( false );
-                if ( res.success ) {
+                const allOk = results.every( function ( r ) { return r.success; } );
+                if ( allOk ) {
                     showMsg( '✓ Saved!', 'success' );
-                    // Flash the element green so the user can see which text was just saved.
                     if ( selectedEl ) {
                         selectedEl.classList.add( 'lp-element-saved' );
                         setTimeout( () => selectedEl?.classList.remove( 'lp-element-saved' ), 1200 );
                     }
                 } else {
-                    showMsg( res.data?.message || 'Error saving. Please try again.', 'error' );
+                    const failed = results.find( function ( r ) { return ! r.success; } );
+                    showMsg( failed?.data?.message || 'Error saving. Please try again.', 'error' );
                 }
             } )
             .catch( function () {

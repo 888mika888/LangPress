@@ -2,16 +2,15 @@
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Datenbankoperationen: Tabellenerstellung und CRUD für Übersetzungen.
+ * All database operations: schema creation, CRUD, and stats.
+ *
+ * Uses a singleton so the table name strings are only computed once.
  */
 class CWT_Database {
 
     private static ?self $instance = null;
 
-    /** @var string */
     private string $table_translations;
-
-    /** @var string */
     private string $table_settings;
 
     private function __construct() {
@@ -27,10 +26,10 @@ class CWT_Database {
         return self::$instance;
     }
 
-    // -------------------------------------------------------------------------
-    // Schema-Installation
-    // -------------------------------------------------------------------------
-
+    /**
+     * Create or update the database tables via dbDelta.
+     * Safe to call repeatedly — dbDelta only adds missing columns/tables.
+     */
     public function install(): void {
         global $wpdb;
 
@@ -68,15 +67,11 @@ class CWT_Database {
         dbDelta( $sql_settings );
     }
 
-    // -------------------------------------------------------------------------
-    // Übersetzungen abrufen
-    // -------------------------------------------------------------------------
-
     /**
-     * Alle aktiven Übersetzungen für eine Sprache laden (für Caching).
+     * Load all active translations for a language into a hash => text map.
+     * This is the bulk fetch used to populate the in-memory cache.
      *
-     * @param string $language_code z.B. 'en', 'uk'
-     * @return array<string, string>  hash => translated_text
+     * @return array<string, string>
      */
     public function get_translations_for_language( string $language_code ): array {
         global $wpdb;
@@ -85,9 +80,7 @@ class CWT_Database {
             $wpdb->prepare(
                 "SELECT text_hash, translated_text
                  FROM {$this->table_translations}
-                 WHERE language_code = %s
-                   AND status = 'active'
-                   AND translated_text != ''",
+                 WHERE language_code = %s AND status = 'active' AND translated_text != ''",
                 $language_code
             ),
             ARRAY_A
@@ -97,19 +90,19 @@ class CWT_Database {
         foreach ( $results as $row ) {
             $map[ $row['text_hash'] ] = $row['translated_text'];
         }
+
         return $map;
     }
 
     /**
-     * Einzelne Übersetzung per Hash und Sprache abrufen.
+     * Fetch a single translation. Returns null if ignored or not yet translated.
      */
     public function get_translation( string $hash, string $language_code ): ?string {
         global $wpdb;
 
         $row = $wpdb->get_row(
             $wpdb->prepare(
-                "SELECT translated_text, status
-                 FROM {$this->table_translations}
+                "SELECT translated_text, status FROM {$this->table_translations}
                  WHERE text_hash = %s AND language_code = %s",
                 $hash,
                 $language_code
@@ -120,22 +113,13 @@ class CWT_Database {
         if ( ! $row || $row['status'] === 'ignored' ) {
             return null;
         }
+
         return $row['translated_text'] !== '' ? $row['translated_text'] : null;
     }
 
-    // -------------------------------------------------------------------------
-    // Übersetzungen speichern / aktualisieren
-    // -------------------------------------------------------------------------
-
     /**
-     * Übersetzung einfügen oder aktualisieren.
-     *
-     * @param string $original_text
-     * @param string $language_code
-     * @param string $translated_text
-     * @param string $status           'active'|'pending'|'ignored'
-     * @param string $page_url
-     * @return bool
+     * Insert or update a translation row.
+     * The hash is always derived from $original_text so the caller never needs to pass it.
      */
     public function upsert_translation(
         string $original_text,
@@ -147,9 +131,8 @@ class CWT_Database {
     ): bool {
         global $wpdb;
 
-        $normalized = $this->normalize( $original_text );
-        $hash       = $this->hash( $original_text );
-        $now        = current_time( 'mysql' );
+        $hash = $this->hash( $original_text );
+        $now  = current_time( 'mysql' );
 
         $existing = $wpdb->get_var(
             $wpdb->prepare(
@@ -174,13 +157,7 @@ class CWT_Database {
                 $format[]        = '%d';
             }
 
-            $result = $wpdb->update(
-                $this->table_translations,
-                $data,
-                [ 'id' => $existing ],
-                $format,
-                [ '%d' ]
-            );
+            $result = $wpdb->update( $this->table_translations, $data, [ 'id' => $existing ], $format, [ '%d' ] );
         } else {
             $data   = [
                 'original_text'   => $original_text,
@@ -194,9 +171,10 @@ class CWT_Database {
             ];
             $format = [ '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' ];
 
-            // normalized_text nur einfügen wenn Spalte existiert (Fallback für nicht-migrierte DBs)
+            // Guard against sites that haven't migrated to the latest schema yet.
+            // column_exists() is cached so this won't hammer the DB on every request.
             if ( $this->column_exists( 'normalized_text' ) ) {
-                $data['normalized_text'] = $normalized;
+                $data['normalized_text'] = $this->normalize( $original_text );
                 $format[]                = '%s';
             }
 
@@ -211,49 +189,10 @@ class CWT_Database {
         return $result !== false;
     }
 
-    /**
-     * Text normalisieren: trimmen, mehrfache Leerzeichen reduzieren.
-     */
-    public function normalize( string $text ): string {
-        return preg_replace( '/\s+/', ' ', trim( $text ) ) ?? trim( $text );
-    }
-
-    /**
-     * Prüft ob eine Spalte in der Übersetzungstabelle existiert.
-     * Ergebnis wird per wp_cache gecacht um wiederholte SHOW COLUMNS zu vermeiden.
-     */
-    private function column_exists( string $column ): bool {
-        $cache_key = 'cwt_col_' . $column;
-        $cached    = wp_cache_get( $cache_key, 'cwt' );
-        if ( $cached !== false ) {
-            return (bool) $cached;
-        }
-
-        global $wpdb;
-        $result = $wpdb->get_var(
-            $wpdb->prepare(
-                'SELECT COUNT(*) FROM information_schema.COLUMNS
-                 WHERE TABLE_SCHEMA = DATABASE()
-                   AND TABLE_NAME   = %s
-                   AND COLUMN_NAME  = %s',
-                $this->table_translations,
-                $column
-            )
-        );
-
-        $exists = (bool) $result;
-        wp_cache_set( $cache_key, $exists, 'cwt', 3600 );
-        return $exists;
-    }
-
-    /**
-     * Status einer Übersetzung ändern.
-     */
     public function update_status( int $id, string $status ): bool {
         global $wpdb;
 
-        $allowed = [ 'active', 'pending', 'ignored' ];
-        if ( ! in_array( $status, $allowed, true ) ) {
+        if ( ! in_array( $status, [ 'active', 'pending', 'ignored' ], true ) ) {
             return false;
         }
 
@@ -266,68 +205,47 @@ class CWT_Database {
         );
     }
 
-    /**
-     * Übersetzungseintrag löschen (einzelner Eintrag per ID).
-     */
     public function delete_translation( int $id ): bool {
         global $wpdb;
 
-        return (bool) $wpdb->delete(
-            $this->table_translations,
-            [ 'id' => $id ],
-            [ '%d' ]
-        );
+        return (bool) $wpdb->delete( $this->table_translations, [ 'id' => $id ], [ '%d' ] );
     }
 
     /**
-     * Alle Übersetzungseinträge eines Originaltexts löschen (alle Sprachen).
+     * Delete every language entry for a given original text.
+     * Used when the admin removes a string from the translations table.
      */
     public function delete_by_hash( string $hash ): bool {
         global $wpdb;
 
-        $result = $wpdb->delete(
-            $this->table_translations,
-            [ 'text_hash' => $hash ],
-            [ '%s' ]
-        );
+        $result = $wpdb->delete( $this->table_translations, [ 'text_hash' => $hash ], [ '%s' ] );
 
         return $result !== false && $result > 0;
     }
 
-    // -------------------------------------------------------------------------
-    // Admin-Listen
-    // -------------------------------------------------------------------------
-
     /**
-     * Alle einzigartigen Originaltexte mit ihren Übersetzungen abrufen.
+     * Return paginated unique originals with their per-language translations attached.
+     * The inner subquery deduplicates by hash so each source string appears once.
      *
-     * @param int    $per_page
-     * @param int    $paged
-     * @param string $search
-     * @param string $status_filter
      * @return array{ items: array, total: int }
      */
     public function get_all_originals(
-        int $per_page = 20,
-        int $paged = 1,
+        int    $per_page = 20,
+        int    $paged = 1,
         string $search = '',
         string $status_filter = ''
     ): array {
         global $wpdb;
 
-        $offset = ( $paged - 1 ) * $per_page;
-
-        $where  = 'WHERE 1=1';
-        $params = [];
-
-        // Status-Filter innerhalb der Unterabfrage anwenden
-        $allowed_statuses = [ 'active', 'pending', 'ignored' ];
+        $offset     = ( $paged - 1 ) * $per_page;
+        $where      = 'WHERE 1=1';
+        $params     = [];
         $inner_cond = '';
-        if ( $status_filter !== '' && in_array( $status_filter, $allowed_statuses, true ) ) {
+
+        if ( $status_filter !== '' && in_array( $status_filter, [ 'active', 'pending', 'ignored' ], true ) ) {
             $inner_cond = $wpdb->prepare( 'AND status = %s', $status_filter );
         }
 
-        // Deduplizierte Übersicht: eine Zeile pro Original-Hash
         $base_sql = "FROM (
             SELECT DISTINCT text_hash, original_text, MIN(page_url) AS page_url, MIN(created_at) AS created_at
             FROM {$this->table_translations}
@@ -340,32 +258,25 @@ class CWT_Database {
             $params[] = '%' . $wpdb->esc_like( $search ) . '%';
         }
 
-        // Count
         $count_sql = "SELECT COUNT(*) $base_sql $where";
-        if ( $params ) {
-            $total = (int) $wpdb->get_var( $wpdb->prepare( $count_sql, ...$params ) );
-        } else {
-            $total = (int) $wpdb->get_var( $count_sql );
-        }
+        $total     = (int) ( $params
+            ? $wpdb->get_var( $wpdb->prepare( $count_sql, ...$params ) )
+            : $wpdb->get_var( $count_sql ) );
 
-        // Items
-        $order_sql = 'ORDER BY originals.created_at DESC';
         $limit_sql = $wpdb->prepare( 'LIMIT %d OFFSET %d', $per_page, $offset );
         $items_sql = "SELECT originals.text_hash, originals.original_text, originals.page_url, originals.created_at
-                      $base_sql $where $order_sql $limit_sql";
+                      $base_sql $where ORDER BY originals.created_at DESC $limit_sql";
 
-        if ( $params ) {
-            $items = $wpdb->get_results( $wpdb->prepare( $items_sql, ...$params ), ARRAY_A );
-        } else {
-            $items = $wpdb->get_results( $items_sql, ARRAY_A );
-        }
+        $items = $params
+            ? $wpdb->get_results( $wpdb->prepare( $items_sql, ...$params ), ARRAY_A )
+            : $wpdb->get_results( $items_sql, ARRAY_A );
 
         if ( ! $items ) {
             return [ 'items' => [], 'total' => $total ];
         }
 
-        // Übersetzungen für alle gefundenen Hashes laden
-        $hashes      = array_column( $items, 'text_hash' );
+        // Fetch all translations for the returned hashes in a single query.
+        $hashes       = array_column( $items, 'text_hash' );
         $placeholders = implode( ',', array_fill( 0, count( $hashes ), '%s' ) );
 
         $trans_rows = $wpdb->get_results(
@@ -378,44 +289,41 @@ class CWT_Database {
             ARRAY_A
         );
 
-        // Indexieren
-        $trans_index = [];
+        $index = [];
         foreach ( $trans_rows as $row ) {
-            $trans_index[ $row['text_hash'] ][ $row['language_code'] ] = $row;
+            $index[ $row['text_hash'] ][ $row['language_code'] ] = $row;
         }
 
         foreach ( $items as &$item ) {
-            $item['translations'] = $trans_index[ $item['text_hash'] ] ?? [];
+            $item['translations'] = $index[ $item['text_hash'] ] ?? [];
         }
         unset( $item );
 
         return [ 'items' => $items, 'total' => $total ];
     }
 
-    // -------------------------------------------------------------------------
-    // Hilfsmethoden
-    // -------------------------------------------------------------------------
-
+    /** SHA-256 hash of the trimmed text. Used as the lookup key throughout. */
     public function hash( string $text ): string {
         return hash( 'sha256', trim( $text ) );
+    }
+
+    /** Collapse internal whitespace so minor formatting differences don't create duplicate entries. */
+    public function normalize( string $text ): string {
+        return preg_replace( '/\s+/', ' ', trim( $text ) ) ?? trim( $text );
     }
 
     public function get_table_translations(): string {
         return $this->table_translations;
     }
 
-    /**
-     * Statistiken für das Dashboard.
-     *
-     * @return array<string, int>
-     */
+    /** Counts for the Debug/Status dashboard. */
     public function get_stats(): array {
         global $wpdb;
 
         $row = $wpdb->get_row(
             "SELECT
                 COUNT(DISTINCT text_hash) AS total_originals,
-                SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) AS active,
+                SUM(CASE WHEN status = 'active'  THEN 1 ELSE 0 END) AS active,
                 SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) AS pending,
                 SUM(CASE WHEN status = 'ignored' THEN 1 ELSE 0 END) AS ignored
              FROM {$this->table_translations}",
@@ -424,9 +332,36 @@ class CWT_Database {
 
         return [
             'total_originals' => (int) ( $row['total_originals'] ?? 0 ),
-            'active'          => (int) ( $row['active'] ?? 0 ),
-            'pending'         => (int) ( $row['pending'] ?? 0 ),
-            'ignored'         => (int) ( $row['ignored'] ?? 0 ),
+            'active'          => (int) ( $row['active']          ?? 0 ),
+            'pending'         => (int) ( $row['pending']         ?? 0 ),
+            'ignored'         => (int) ( $row['ignored']         ?? 0 ),
         ];
+    }
+
+    /**
+     * Check whether a column exists in the translations table.
+     * Result is cached for an hour so repeated calls are free.
+     */
+    private function column_exists( string $column ): bool {
+        $cache_key = 'cwt_col_' . $column;
+        $cached    = wp_cache_get( $cache_key, 'cwt' );
+
+        if ( $cached !== false ) {
+            return (bool) $cached;
+        }
+
+        global $wpdb;
+        $exists = (bool) $wpdb->get_var(
+            $wpdb->prepare(
+                'SELECT COUNT(*) FROM information_schema.COLUMNS
+                 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND COLUMN_NAME = %s',
+                $this->table_translations,
+                $column
+            )
+        );
+
+        wp_cache_set( $cache_key, $exists, 'cwt', 3600 );
+
+        return $exists;
     }
 }

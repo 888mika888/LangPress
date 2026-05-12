@@ -416,8 +416,7 @@ class LP_Admin {
 			LP_Translator::instance()->invalidate_cache( $lang );
 			wp_send_json_success( [ 'message' => __( 'Gespeichert!', 'langpress' ) ] );
 		} else {
-			global $wpdb;
-			wp_send_json_error( [ 'message' => 'DB error: ' . $wpdb->last_error ] );
+			wp_send_json_error( [ 'message' => __( 'Fehler beim Speichern.', 'langpress' ) ] );
 		}
 	}
 

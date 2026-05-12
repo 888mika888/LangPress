@@ -1,42 +1,36 @@
 # Custom Website Translator
 
-> A WordPress plugin for multilingual websites with a visual, manual translation editor — no duplicate pages, no auto-translation APIs, full control over every translated string.
+A WordPress plugin for multilingual websites with a visual, manual translation editor — no duplicate pages, no auto-translation APIs, full control over every translated string.
 
 ![WordPress](https://img.shields.io/badge/WordPress-6.0%2B-blue?logo=wordpress)
 ![PHP](https://img.shields.io/badge/PHP-8.1%2B-777bb4?logo=php)
 ![License](https://img.shields.io/badge/License-GPL%20v2-green)
 ![Version](https://img.shields.io/badge/Version-1.2.0-orange)
 
----
-
-> **⚠️ Work in Progress — Personal Project**
->
-> This plugin was built for a specific personal use case (a German/English/Ukrainian website) and is shared as-is. It works for that purpose, but it is **not a polished, general-purpose release**. Updates will be infrequent and there is no guarantee of ongoing maintenance. Use it, fork it, adapt it — but don't rely on it for a production site without reviewing the code yourself first.
+> **Note:** This plugin was built for a specific use case and is not actively maintained. Pull requests are welcome but response times may be slow.
 
 ---
 
-## Overview
+## What it does
 
-Custom Website Translator lets you translate any WordPress site into multiple languages by clicking directly on text in the live frontend. Translations are stored in a dedicated database table and applied dynamically — no extra pages or posts are ever created.
+Custom Website Translator lets you translate a WordPress site into multiple languages by clicking directly on text in the live frontend. Translations are stored in a custom database table and applied dynamically at request time — no extra pages or posts are ever created.
 
-A sidebar opens alongside the real page, you click on any text, and type your translation. The page content, theme, and WordPress structure are never modified.
+When you click **Translate Page** in the admin bar, a sidebar opens alongside your live page. You hover over any text, click the pencil icon, type your translation, and save. That's the whole workflow.
 
-**Default language:** German  
-**Supported targets out of the box:** English, Ukrainian  
-**Additional selectable languages:** French, Spanish, Italian, Turkish, Polish, Russian, Arabic
+**Ships with:** German (default), English, Ukrainian  
+**Also available:** French, Spanish, Italian, Turkish, Polish, Russian, Arabic
 
 ---
 
 ## Features
 
-- **Visual Translation Editor** — click "Translate Page" in the admin bar; a sidebar opens on the live page with pencil icons on every text block
-- **No duplicate pages** — translations stored in a custom DB table, applied via PHP output buffering at runtime
-- **Manual control** — you choose what gets translated; ignored strings are never suggested again
-- **Language switcher** — fixed-position dropdown or buttons, shortcode `[custom_language_switcher]`, or widget
-- **Auto-activation** — saving a translation immediately makes it active; no extra confirmation step
-- **Auto-migration** — DB schema upgrades run automatically on version change; no deactivate/reactivate needed
-- **Secure** — nonces, `current_user_can()`, prepared statements, full input sanitization and output escaping
-- **Performant** — one DB query per request loads the full translation map into memory; O(1) lookups at runtime
+- **Visual editor** — translate text directly on the live page without touching the WordPress editor
+- **No duplicate pages** — translations are swapped in via PHP output buffering at runtime
+- **Manual control** — you decide what gets translated; ignored strings are never suggested again
+- **Language switcher** — fixed-position dropdown or buttons that appear on every page
+- **Auto-activation** — saving a translation makes it live immediately
+- **Auto-migration** — database schema updates run automatically on version change
+- **Secure** — nonces, capability checks, prepared statements, sanitized inputs throughout
 
 ---
 
@@ -52,47 +46,47 @@ A sidebar opens alongside the real page, you click on any text, and type your tr
 
 ## Installation
 
-### ZIP upload
+**Via ZIP (easiest)**
 
 1. Download `custom-website-translator.zip` from [Releases](../../releases)
-2. **WordPress Admin → Plugins → Add New → Upload Plugin**
+2. Go to **WordPress Admin → Plugins → Add New → Upload Plugin**
 3. Select the ZIP → **Install Now** → **Activate**
 
-### FTP / manual
+**Via FTP**
 
-1. Copy the `custom-website-translator/` folder into `/wp-content/plugins/`
-2. **WordPress Admin → Plugins → Activate**
+1. Copy the `custom-website-translator/` folder to `/wp-content/plugins/`
+2. Go to **WordPress Admin → Plugins** and activate it
 
-On first activation the plugin creates its database tables and sets sensible defaults automatically.
+The plugin creates its database tables and sets default options automatically on first activation.
 
 ---
 
 ## Quick Start
 
-1. **Translator → Languages** — set German as default, enable English and Ukrainian
-2. **Translator → Settings** — choose a position (e.g. *Bottom Right*) and tick **Fix switcher on screen**
-3. Visit any page on your site → click **Translate Page** in the admin bar
-4. Hover over any text → click the **✎** icon → type your translations → **Save**
+1. Go to **Translator → Languages** — confirm German as default, enable English and Ukrainian
+2. Go to **Translator → Settings** — pick a position (e.g. *Bottom Right*) and enable **Fix switcher on screen**
+3. Visit any page on your site as an admin → click **Translate Page** in the top bar
+4. Hover over any text → click the **✎** icon → type your translation → **Save**
 
-That's it. The language switcher is now visible on every page for all visitors.
+The language switcher will now appear on every page for all visitors.
 
 ---
 
-## Visual Translation Editor
+## Using the Visual Editor
 
-Accessed via **Translate Page** in the WordPress admin bar (visible only to administrators).
+The editor is opened via **Translate Page** in the WordPress admin bar. It is only visible to administrators.
 
 ```
 ┌─────────────────────┬──────────────────────────────────────────┐
 │  Translation Editor │                                          │
-│  ─────────────────  │        Live website preview              │
+│  ─────────────────  │        Your live website                 │
 │  From German        │                                          │
 │  ┌───────────────┐  │   ┌─────────────────────────────────┐    │
 │  │ Original text │  │   │ ✎  Heading text                 │    │
 │  └───────────────┘  │   └─────────────────────────────────┘    │
 │  To English         │                                          │
-│  ┌───────────────┐  │   Paragraph text here. More content      │
-│  │               │  │   that can be clicked to translate. ✎    │
+│  ┌───────────────┐  │   Paragraph text here. Click any         │
+│  │               │  │   text block to translate it. ✎          │
 │  └───────────────┘  │                                          │
 │  To Ukrainian       │                                          │
 │  ┌───────────────┐  │                                          │
@@ -102,76 +96,55 @@ Accessed via **Translate Page** in the WordPress admin bar (visible only to admi
 └─────────────────────┴──────────────────────────────────────────┘
 ```
 
-- Hover any text block → pencil icon appears
-- Click pencil (or click the text) → original loads in sidebar, existing translations pre-filled
-- Edit and click **Save** — translation is live immediately
-- Regular visitors never see the editor UI or pencil icons
+- Hover any text block → a pencil icon appears
+- Click the pencil (or the text itself) → the original text loads in the sidebar; any existing translations are pre-filled
+- Edit the translation fields and click **Save** — it goes live immediately
+- Regular visitors never see the editor or pencil icons
 
 ---
 
 ## Language Switcher
 
-### Fixed position (recommended)
+There are three ways to add the language switcher to your site:
 
-Enable **Fix switcher on screen** in settings. The dropdown appears on every page at your chosen corner.
+**Fixed position (recommended)** — enable **Fix switcher on screen** in Settings. The switcher appears in your chosen corner on every page automatically.
 
-### Shortcode
-
+**Shortcode** — paste this anywhere in your content or templates:
 ```
 [custom_language_switcher]
 ```
 
-### Widget
+**Widget** — add the **Language Switcher** widget to any sidebar or footer area via **Appearance → Widgets**.
 
-Add the **Language Switcher** widget to any sidebar or footer widget area.
-
-### Switching behavior
-
-| Action | Result |
-|---|---|
-| Click a language | Page reloads with `?cwt_lang=en`, cookie set, translations applied |
-| Navigate to next page | Cookie keeps language active across the whole site |
-| Text without translation | Falls back to the original text silently |
+When a visitor clicks a language, the page reloads with `?cwt_lang=en` (or `uk`) appended, a cookie is set, and the translated version is shown. The cookie keeps the language active as they navigate the site. Any text without a translation falls back to the original silently.
 
 ---
 
 ## Admin Panels
 
-| Panel | Purpose |
+| Panel | What it does |
 |---|---|
-| **Settings** | Switcher visibility (all pages / specific / exclude), position, fixed mode |
-| **Languages** | Default language, active translation targets |
-| **Translations** | Full table with search, status filter, inline editing, bulk delete |
-| **Design** | Dropdown vs buttons, text/flag/both, colors, border radius, font size |
-| **Import / Export** | Export all translations as JSON; import from a previous export |
-| **Debug / Status** | System info, table check, cache clear, DB reinstall, translation counts |
-
----
-
-## Shortcode
-
-```
-[custom_language_switcher]
-```
-
-Renders using the colors and style configured in the Design panel. No attributes required.
+| **Settings** | Control which pages show the switcher, its position, and fixed mode |
+| **Languages** | Set the default language and choose which languages are active |
+| **Translations** | Browse, search, and edit all translations in one table |
+| **Design** | Style the switcher: dropdown vs buttons, text/flag/both, colors, sizes |
+| **Import / Export** | Back up and restore translations as JSON |
+| **Debug / Status** | Check system info, clear cache, reinstall DB tables |
 
 ---
 
 ## How It Works
 
-### Translation flow
+When a visitor loads a page in a non-default language:
 
-1. Visitor requests a page
-2. `CWT_Translator` reads the active language — URL param `?cwt_lang=` → cookie → site default
-3. If not default: `CWT_Frontend` starts PHP output buffering
-4. WordPress renders the full HTML; the buffer callback passes it to `translate_html()`
-5. `DOMDocument` walks all visible text nodes and replaces matches from the in-memory cache
-6. Scripts, styles, HTML attributes, IDs, classes are never modified
+1. `CWT_Translator` detects the active language — URL param → cookie → site default
+2. `CWT_Frontend` starts PHP output buffering
+3. WordPress renders the full page HTML
+4. The buffer callback passes the HTML to `translate_html()`
+5. `DOMDocument` walks all visible text nodes and replaces any that have a translation in the in-memory cache
+6. Scripts, styles, HTML attributes, IDs, and classes are never touched
 
-### Cache
-
-All translations for the active language are loaded in a single query at the start of the request and held in a PHP array (keyed by SHA-256 hash). With a persistent cache backend (Redis, Memcached), `wp_cache_set()` stores the map for 5 minutes across requests.
+**Cache:** All translations for the active language are loaded in a single query at the start of the request and held in a PHP array keyed by SHA-256 hash. With a persistent cache backend (Redis, Memcached), `wp_cache_set()` stores the map for 5 minutes across requests, so most page loads never hit the database at all.
 
 ---
 
@@ -179,7 +152,7 @@ All translations for the active language are loaded in a single query at the sta
 
 ### AJAX Endpoints
 
-All endpoints POST to `wp-admin/admin-ajax.php`. Admin endpoints require a valid `cwt_admin_nonce` nonce and `manage_options` capability.
+All endpoints POST to `wp-admin/admin-ajax.php`. Admin endpoints require a valid `cwt_admin_nonce` nonce and the `manage_options` capability.
 
 | Action | Auth | Key parameters |
 |---|---|---|
@@ -199,15 +172,15 @@ All endpoints POST to `wp-admin/admin-ajax.php`. Admin endpoints require a valid
 
 | Column | Type | Notes |
 |---|---|---|
-| `id` | BIGINT UNSIGNED | PK |
-| `post_id` | BIGINT UNSIGNED NULL | Optional page/post ID |
-| `original_text` | LONGTEXT | Source text |
-| `normalized_text` | LONGTEXT | Trimmed, whitespace-collapsed |
-| `text_hash` | VARCHAR(64) | SHA-256 lookup key |
-| `language_code` | VARCHAR(10) | `en`, `uk`, `fr` … |
-| `translated_text` | LONGTEXT | Translation |
+| `id` | BIGINT UNSIGNED | Primary key |
+| `post_id` | BIGINT UNSIGNED NULL | Optional — links translation to a specific post/page |
+| `original_text` | LONGTEXT | The source text as found on the page |
+| `normalized_text` | LONGTEXT | Trimmed, whitespace-collapsed version for matching |
+| `text_hash` | VARCHAR(64) | SHA-256 of the normalized text — used as the lookup key |
+| `language_code` | VARCHAR(10) | e.g. `en`, `uk`, `fr` |
+| `translated_text` | LONGTEXT | The translation |
 | `status` | ENUM | `active` / `pending` / `ignored` |
-| `page_url` | VARCHAR(2083) | Where text was first found |
+| `page_url` | VARCHAR(2083) | URL where the text was first detected |
 | `created_at` | DATETIME | |
 | `updated_at` | DATETIME | |
 
@@ -219,76 +192,75 @@ Unique index on `(text_hash, language_code)`.
 custom-website-translator/
 ├── custom-website-translator.php        # Bootstrap, constants, autoloader
 ├── includes/
-│   ├── class-cwt-activator.php          # DB install, default options
-│   ├── class-cwt-database.php           # CRUD, schema migration
-│   ├── class-cwt-translator.php         # Language detection, cache, DOM walk
-│   ├── class-cwt-frontend.php           # Output buffering, admin bar, editor mode
+│   ├── class-cwt-activator.php          # DB install, default options on activation
+│   ├── class-cwt-database.php           # All DB operations and schema migration
+│   ├── class-cwt-translator.php         # Language detection, cache, DOM text replacement
+│   ├── class-cwt-frontend.php           # Output buffering, admin bar button, editor mode
 │   ├── class-cwt-language-switcher.php  # Switcher HTML, shortcode, widget, AJAX
-│   └── class-cwt-admin.php              # Admin pages, AJAX handlers
+│   └── class-cwt-admin.php              # All admin pages and AJAX handlers
 ├── public/
-│   ├── public.{css,js}                  # Language switcher frontend
+│   ├── public.{css,js}                  # Language switcher styles and interaction
 │   ├── translate-mode.{css,js}          # Floating quick-translate sidebar
-│   └── translation-editor.{css,js}      # Full visual editor (pencil icons)
+│   └── translation-editor.{css,js}      # Full visual editor (pencil icons, sidebar)
 ├── admin/
 │   └── admin.{css,js}                   # WordPress admin panel UI
-└── languages/                           # WP i18n .po / .mo files
+└── languages/                           # .po / .mo files for plugin UI strings
 ```
 
 ---
 
 ## Security
 
-| Measure | Detail |
+| Measure | How |
 |---|---|
-| Nonces | Every AJAX and form action verified with `check_ajax_referer()` |
-| Capability | All writes require `current_user_can('manage_options')` |
-| Sanitization | `sanitize_textarea_field`, `sanitize_key`, `sanitize_hex_color`, `absint` |
-| Escaping | `esc_html`, `esc_attr`, `esc_url`, `esc_textarea` on all output |
-| SQL | `$wpdb->prepare()` on every query; `$wpdb->insert` / `update` for writes |
-| XSS | `DOMDocument` replaces text nodes only — no raw HTML injection |
-| Cookie | `HttpOnly`, `Secure` on HTTPS, `SameSite=Lax` |
+| Nonces | Every AJAX and form request verified with `check_ajax_referer()` or `wp_verify_nonce()` |
+| Capability checks | All write operations require `current_user_can('manage_options')` |
+| Input sanitization | `sanitize_textarea_field`, `sanitize_key`, `sanitize_hex_color`, `absint` |
+| Output escaping | `esc_html`, `esc_attr`, `esc_url`, `esc_textarea` on all output |
+| SQL | `$wpdb->prepare()` on every query with user input |
+| XSS | `DOMDocument` replaces text nodes only — raw HTML is never injected |
+| Cookies | `HttpOnly`, `Secure` on HTTPS, `SameSite=Lax` |
 
 ---
 
 ## Contributing
 
-Pull requests are welcome. For significant changes please open an issue first to discuss the approach.
+Pull requests are welcome. For larger changes, open an issue first so we can discuss the approach before you invest time in it.
 
 1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/my-change`)
+2. Create a branch (`git checkout -b feature/my-change`)
 3. Commit your changes
 4. Open a pull request
 
-Please follow [WordPress Coding Standards](https://developer.wordpress.org/coding-standards/wordpress-coding-standards/) for PHP code.
+Please follow [WordPress Coding Standards](https://developer.wordpress.org/coding-standards/wordpress-coding-standards/) for PHP.
 
 ---
 
 ## License
 
-Distributed under the **GNU General Public License v2 or later**.  
-See the plugin file header or [https://www.gnu.org/licenses/gpl-2.0.html](https://www.gnu.org/licenses/gpl-2.0.html) for the full license text.
+GNU General Public License v2 or later — see [https://www.gnu.org/licenses/gpl-2.0.html](https://www.gnu.org/licenses/gpl-2.0.html).
 
 ---
 
 ## Changelog
 
 ### 1.2.0
-- Visual Translation Editor with admin-bar "Translate Page" button
-- Left sidebar with pencil icons on every translatable block
-- Multi-language save (EN + UK) in one AJAX call
-- `post_id` and `normalized_text` columns; auto DB migration on version change
-- Safe column-existence check prevents INSERT failures on old schemas
+- Visual Translation Editor: "Translate Page" button in admin bar opens a full sidebar editor
+- Pencil icons on every translatable text block in the editor
+- Save EN + UK translations in a single AJAX call
+- `post_id` and `normalized_text` database columns added
+- Database schema auto-migrates on version change — no manual deactivate/reactivate needed
 
 ### 1.1.0
-- Floating sidebar quick-translate mode
-- Dynamic default-language flag (not hardcoded to German)
-- `status_filter` now correctly applied in translations query
+- Floating quick-translate sidebar mode
+- Default language flag in sidebar is now dynamic
+- Status filter in the translations table now works correctly
 
 ### 1.0.1
-- Delete by hash removes all language entries (not just the first)
-- `cwt_clear_cache` and `cwt_reinstall_db` endpoints implemented
-- Translations auto-activate on save
-- Fixed-position switcher now appears on all pages regardless of page filter
+- Deleting a translation now removes all language entries, not just the first
+- `cwt_clear_cache` and `cwt_reinstall_db` endpoints added
+- Translations activate automatically on save
+- Fixed-position switcher now shows on all pages regardless of page filter setting
 
 ### 1.0.0
-- Initial release: output-buffer translation, language switcher, admin panel, import/export
+- Initial release: output-buffer translation, language switcher, admin panel, JSON import/export

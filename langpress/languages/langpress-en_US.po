@@ -1,0 +1,288 @@
+# LangPress – English (United States)
+# Copyright (C) 2024 888mika888
+# License: GPL v2 or later
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"X-Text-Domain: langpress\n"
+
+msgid "%d Einträge"
+msgstr "%d entries"
+
+msgid "%d Übersetzungen importiert."
+msgstr "%d translations imported."
+
+msgid "Abstände & Größen"
+msgstr "Sizes & Spacing"
+
+msgid "Aktionen"
+msgstr "Actions"
+
+msgid "Aktiv"
+msgstr "Active"
+
+msgid "Aktive Sprache (aktueller Request)"
+msgstr "Active language (current request)"
+
+msgid "Aktive Übersetzungen"
+msgstr "Active translations"
+
+msgid "Aktive Übersetzungssprachen"
+msgstr "Active translation languages"
+
+msgid "Alle Status"
+msgstr "All statuses"
+
+msgid "Alle Übersetzungen als JSON-Datei herunterladen."
+msgstr "Download all translations as a JSON file."
+
+msgid "Allen Seiten"
+msgstr "All pages"
+
+msgid "Allen außer bestimmten"
+msgstr "All except specific"
+
+msgid "Anzeigen auf"
+msgstr "Show on"
+
+msgid "Ausstehend"
+msgstr "Pending"
+
+msgid "Cache geleert."
+msgstr "Cache cleared."
+
+msgid "Darstellung"
+msgstr "Appearance"
+
+msgid "Datenbank neu installieren"
+msgstr "Reinstall database"
+
+msgid "Datenbanktabelle"
+msgstr "Database table"
+
+msgid "Design gespeichert."
+msgstr "Design saved."
+
+msgid "Design speichern"
+msgstr "Save design"
+
+msgid "Dropdown-Menü"
+msgstr "Dropdown menu"
+
+msgid "Einstellungen"
+msgstr "Settings"
+
+msgid "Einstellungen gespeichert."
+msgstr "Settings saved."
+
+msgid "Einstellungen speichern"
+msgstr "Save settings"
+
+msgid "Einzigartige Originaltexte"
+msgstr "Unique original texts"
+
+msgid "Farben"
+msgstr "Colors"
+
+msgid "Fehler beim Speichern."
+msgstr "Error saving."
+
+msgid "Filtern"
+msgstr "Filter"
+
+msgid "Fixed-Position"
+msgstr "Fixed position"
+
+msgid "Flagge"
+msgstr "Flag"
+
+msgid "Gespeichert!"
+msgstr "Saved!"
+
+msgid "Hauptsprache"
+msgstr "Default language"
+
+msgid "Hintergrundfarbe"
+msgstr "Background color"
+
+msgid "Hover-Hintergrund"
+msgstr "Hover background"
+
+msgid "Ignorieren"
+msgstr "Ignore"
+
+msgid "Ignoriert"
+msgstr "Ignored"
+
+msgid "JSON exportieren"
+msgstr "Export JSON"
+
+msgid "JSON importieren"
+msgstr "Import JSON"
+
+msgid "JSON-Datei importieren (zuvor exportiertes Format)."
+msgstr "Import a JSON file (previously exported format)."
+
+msgid "Keine Datei hochgeladen."
+msgstr "No file uploaded."
+
+msgid "Keine Texte gefunden. Besuche deine Website, damit Texte automatisch erkannt werden."
+msgstr "No texts found. Visit your site so texts are detected automatically."
+
+msgid "Keine Übersetzungen eingegeben."
+msgstr "No translations entered."
+
+msgid "LangPress – Debug / Status"
+msgstr "LangPress – Debug / Status"
+
+msgid "LangPress – Design & Dropdown"
+msgstr "LangPress – Design & Dropdown"
+
+msgid "LangPress – Einstellungen"
+msgstr "LangPress – Settings"
+
+msgid "LangPress – Import / Export"
+msgstr "LangPress – Import / Export"
+
+msgid "LangPress – Sprachen"
+msgstr "LangPress – Languages"
+
+msgid "LangPress – Übersetzungen"
+msgstr "LangPress – Translations"
+
+msgid "Löschen"
+msgstr "Delete"
+
+msgid "Nur JSON-Dateien werden unterstützt."
+msgstr "Only JSON files are supported."
+
+msgid "Nur Shortcode"
+msgstr "Shortcode only"
+
+msgid "Nur bestimmten Seiten"
+msgstr "Specific pages only"
+
+msgid "Oben links"
+msgstr "Top left"
+
+msgid "Oben rechts"
+msgstr "Top right"
+
+msgid "Originaltext"
+msgstr "Original text"
+
+msgid "Originaltext suchen..."
+msgstr "Search original text..."
+
+msgid "Plugin-Version"
+msgstr "Plugin version"
+
+msgid "Rahmenfarbe"
+msgstr "Border color"
+
+msgid "Schaltflächen"
+msgstr "Buttons"
+
+msgid "Schriftgröße (px)"
+msgstr "Font size (px)"
+
+msgid "Seiten auswählen"
+msgstr "Select pages"
+
+msgid "Speichern"
+msgstr "Save"
+
+msgid "Sprach-Anzeige"
+msgstr "Language display"
+
+msgid "Sprache wählen"
+msgstr "Select language"
+
+msgid "Sprachen"
+msgstr "Languages"
+
+msgid "Sprachen gespeichert."
+msgstr "Languages saved."
+
+msgid "Sprachen speichern"
+msgstr "Save languages"
+
+msgid "Sprachumschalter"
+msgstr "Language switcher"
+
+msgid "Sprachumschalter-Sichtbarkeit"
+msgstr "Language switcher visibility"
+
+msgid "Standardsprache"
+msgstr "Default language"
+
+msgid "Stil"
+msgstr "Style"
+
+msgid "Switcher fest am Bildschirmrand fixieren (position: fixed)"
+msgstr "Fix switcher to screen edge (position: fixed)"
+
+msgid "System-Status"
+msgstr "System status"
+
+msgid "Tabelle fehlt!"
+msgstr "Table missing!"
+
+msgid "Text + Flagge"
+msgstr "Text + Flag"
+
+msgid "Textfarbe"
+msgstr "Text color"
+
+msgid "Texte auf der Website sind in dieser Sprache verfasst."
+msgstr "The website content is written in this language."
+
+msgid "Titel:"
+msgstr "Title:"
+
+msgid "Translator"
+msgstr "Translator"
+
+msgid "Ungültige JSON-Datei."
+msgstr "Invalid JSON file."
+
+msgid "Unten links"
+msgstr "Bottom left"
+
+msgid "Unten rechts"
+msgstr "Bottom right"
+
+msgid "Vorschau"
+msgstr "Preview"
+
+msgid "Wähle alle Sprachen, in die übersetzt werden soll."
+msgstr "Choose all languages to translate into."
+
+msgid "Website Translator"
+msgstr "Website Translator"
+
+msgid "Wirklich löschen?"
+msgstr "Really delete?"
+
+msgid "Zeigt den Sprachumschalter an."
+msgstr "Displays the language switcher."
+
+msgid "Zugriff verweigert."
+msgstr "Access denied."
+
+msgid "Übersetzung eingeben…"
+msgstr "Enter translation…"
+
+msgid "Übersetzungen"
+msgstr "Translations"
+
+msgid "Übersetzungs-Cache leeren"
+msgstr "Clear translation cache"
+
+msgid "Übersetzungs-Statistiken"
+msgstr "Translation statistics"
+
+msgid "Shortcode:"
+msgstr "Shortcode:"

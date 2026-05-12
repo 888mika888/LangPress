@@ -155,6 +155,12 @@ class LP_Database {
 		);
 
 		if ( $existing ) {
+			// Don't overwrite an existing translation with an empty placeholder (e.g. from auto-registration).
+			// Prevents register_text() from wiping active translations every 24 hours.
+			if ( $translated_text === '' ) {
+				return true;
+			}
+
 			$data   = [
 				'translated_text' => $translated_text,
 				'status'          => $status,
@@ -313,9 +319,13 @@ class LP_Database {
 		return [ 'items' => $items, 'total' => $total ];
 	}
 
-	/** SHA-256 hash of the trimmed text. Used as the lookup key throughout. */
+	/**
+	 * SHA-256 hash of the normalized text. Used as the lookup key throughout.
+	 * Whitespace is collapsed so "Hello  World" and "Hello World" produce the same hash,
+	 * matching what browsers report via innerText (used by the visual editor).
+	 */
 	public function hash( string $text ): string {
-		return hash( 'sha256', trim( $text ) );
+		return hash( 'sha256', preg_replace( '/\s+/', ' ', trim( $text ) ) ?? trim( $text ) );
 	}
 
 	/** Collapse internal whitespace so minor formatting differences don't create duplicate entries. */
@@ -355,7 +365,7 @@ class LP_Database {
 	 */
 	private function column_exists( string $column ): bool {
 		$cache_key = 'lp_col_' . $column;
-		$cached    = wp_cache_get( $cache_key, 'cwt' );
+		$cached    = wp_cache_get( $cache_key, 'lp' );
 
 		if ( $cached !== false ) {
 			return (bool) $cached;
@@ -371,7 +381,7 @@ class LP_Database {
 			)
 		);
 
-		wp_cache_set( $cache_key, $exists, 'cwt', 3600 );
+		wp_cache_set( $cache_key, $exists, 'lp', 3600 );
 
 		return $exists;
 	}

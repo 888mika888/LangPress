@@ -49,9 +49,10 @@ LangPress lets you translate a WordPress site into multiple languages by clickin
 
 **Via ZIP (easiest)**
 
-1. Download `langpress.zip` from [Releases](../../releases)
-2. Go to **WordPress Admin → Plugins → Add New → Upload Plugin**
-3. Select the ZIP → **Install Now** → **Activate**
+1. Download `LangPress-main.zip` from [Releases](../../releases)
+2. Extract the ZIP File
+3. Go to **WordPress Admin → Plugins → Add New → Upload Plugin**
+4. Select the ZIP inside of the extracted Folder → **Install Now** → **Activate**
 
 **Via FTP**
 
@@ -252,9 +253,14 @@ langpress/
 
 ## Contributing
 
-Pull requests are welcome. Response times may vary — this is a personal project and not actively maintained.
+Pull requests are welcome.
 
-PHP code should follow [WordPress Coding Standards](https://developer.wordpress.org/coding-standards/wordpress-coding-standards/).
+This is a personal project and is not actively maintained, so response times may vary
+Please make sure that PHP code follows the [WordPress Coding Standards](https://developer.wordpress.org/coding-standards/wordpress-coding-standards/)
+LangPress was created because I struggled to find a simple translation and language-switching plugin that fit my needs. I hope it can be useful for others as well
+Contributions, improvements, updated versions, or even a fully upgraded plugin based on LangPress are very welcome :)
+When I have time, I will review reported issues and try to fix them
+I hope this open-source project can grow and evolve with the WordPress community
 
 ---
 

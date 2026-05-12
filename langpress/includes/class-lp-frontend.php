@@ -149,7 +149,7 @@ class LP_Frontend {
 							<?php echo esc_html( $def_meta['flag'] . ' From ' . $def_meta['native'] ); ?>
 						</label>
 						<textarea class="lp-sidebar-textarea lp-sidebar-textarea--readonly"
-								  id="lp-editor-de" readonly rows="3"
+								  id="lp-editor-original" readonly rows="3"
 								  placeholder="<?php esc_attr_e( 'Original text…', 'langpress' ); ?>"></textarea>
 						<small class="lp-sidebar-sublabel">Text</small>
 					</div>

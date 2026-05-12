@@ -133,7 +133,7 @@
         el.classList.add( 'lp-element-selected' );
         el.scrollIntoView( { behavior: 'smooth', block: 'center' } );
 
-        const deField = document.getElementById( 'lp-editor-de' );
+        const deField = document.getElementById( 'lp-editor-original' );
         if ( deField ) deField.value = text;
 
         ( cfg.targetLangs || [] ).forEach( function ( lang ) {

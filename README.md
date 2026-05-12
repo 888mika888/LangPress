@@ -9,11 +9,17 @@
 
 ---
 
+> **⚠️ Work in Progress — Personal Project**
+>
+> This plugin was built for a specific personal use case (a German/English/Ukrainian website) and is shared as-is. It works for that purpose, but it is **not a polished, general-purpose release**. Updates will be infrequent and there is no guarantee of ongoing maintenance. Use it, fork it, adapt it — but don't rely on it for a production site without reviewing the code yourself first.
+
+---
+
 ## Overview
 
 Custom Website Translator lets you translate any WordPress site into multiple languages by clicking directly on text in the live frontend. Translations are stored in a dedicated database table and applied dynamically — no extra pages or posts are ever created.
 
-The visual editor works similarly to TranslatePress: a sidebar opens alongside the real page, you click on any text, and type your translation. The page content, theme, and WordPress structure are never modified.
+A sidebar opens alongside the real page, you click on any text, and type your translation. The page content, theme, and WordPress structure are never modified.
 
 **Default language:** German  
 **Supported targets out of the box:** English, Ukrainian  

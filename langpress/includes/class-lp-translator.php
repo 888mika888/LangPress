@@ -198,12 +198,12 @@ class LP_Translator {
 		if ( $lang === '' ) {
 			$active = get_option( 'lp_active_languages', [ 'de', 'en', 'uk' ] );
 			foreach ( $active as $l ) {
-				wp_cache_delete( 'lp_translations_' . $l, 'cwt' );
+				wp_cache_delete( 'lp_translations_' . $l, 'lp' );
 			}
 			$this->cache        = [];
 			$this->cache_loaded = false;
 		} else {
-			wp_cache_delete( 'lp_translations_' . $lang, 'cwt' );
+			wp_cache_delete( 'lp_translations_' . $lang, 'lp' );
 			unset( $this->cache[ $lang ] );
 			if ( $lang === $this->current_language ) {
 				$this->cache_loaded = false;
@@ -222,13 +222,13 @@ class LP_Translator {
 
 		$lang      = $this->current_language;
 		$cache_key = 'lp_translations_' . $lang;
-		$cached    = wp_cache_get( $cache_key, 'cwt' );
+		$cached    = wp_cache_get( $cache_key, 'lp' );
 
 		if ( $cached !== false ) {
 			$this->cache[ $lang ] = $cached;
 		} else {
 			$this->cache[ $lang ] = LP_Database::instance()->get_translations_for_language( $lang );
-			wp_cache_set( $cache_key, $this->cache[ $lang ], 'cwt', 300 );
+			wp_cache_set( $cache_key, $this->cache[ $lang ], 'lp', 300 );
 		}
 
 		$this->cache_loaded = true;

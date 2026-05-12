@@ -34,7 +34,11 @@ class CWT_Language_Switcher {
     // -------------------------------------------------------------------------
 
     public function enqueue_assets(): void {
-        if ( ! $this->should_show_on_current_page() ) {
+        $fixed = (bool) get_option( 'cwt_position_fixed', false );
+
+        // Fixed-Switcher: Assets auf ALLEN Seiten laden.
+        // Seiten-Filter gilt nur für den inline/shortcode Modus.
+        if ( ! $fixed && ! $this->should_show_on_current_page() ) {
             return;
         }
 
@@ -253,11 +257,13 @@ class CWT_Language_Switcher {
         $fixed    = (bool) get_option( 'cwt_position_fixed', false );
         $position = get_option( 'cwt_switcher_position', 'bottom-right' );
 
-        // Nur rendern, wenn fixed und nicht Shortcode-only-Modus
-        if ( $fixed && $this->should_show_on_current_page() ) {
-            // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-            echo $this->render( false );
+        if ( ! $fixed ) {
+            return;
         }
+
+        // Fixed-Switcher erscheint auf ALLEN Seiten – Seiten-Filter gilt nur für inline/shortcode.
+        // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+        echo $this->render( false );
     }
 
     // -------------------------------------------------------------------------

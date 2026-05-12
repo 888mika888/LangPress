@@ -74,6 +74,12 @@ class CWT_Language_Switcher {
             return;
         }
 
+        // Full editor mode has its own sidebar — don't load the floating quick-mode too
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+        if ( isset( $_GET['cwt_translation_editor'] ) && $_GET['cwt_translation_editor'] === '1' ) {
+            return;
+        }
+
         // Public-Assets sicherstellen (falls Switcher auf dieser Seite deaktiviert)
         wp_enqueue_style( 'cwt-public', CWT_PLUGIN_URL . 'public/public.css', [], CWT_VERSION );
         wp_enqueue_script( 'cwt-public', CWT_PLUGIN_URL . 'public/public.js', [], CWT_VERSION, true );

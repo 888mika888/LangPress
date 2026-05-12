@@ -118,6 +118,7 @@ class CWT_Frontend {
 
         wp_localize_script( 'cwt-translation-editor', 'CWT_Editor', [
             'ajaxUrl'     => admin_url( 'admin-ajax.php' ),
+            'adminUrl'    => admin_url( 'admin.php?page=cwt-translations' ),
             'nonce'       => wp_create_nonce( 'cwt_admin_nonce' ),
             'defaultLang' => $default_lang,
             'targetLangs' => $target_langs,

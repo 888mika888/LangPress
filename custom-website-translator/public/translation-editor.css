@@ -301,19 +301,32 @@ body.cwt-editor-active #wpadminbar {
     background-color: rgba(0, 115, 170, .06) !important;
 }
 
-/* --- Pencil icon --- */
+/* Post-save success flash */
+@keyframes cwt-saved-flash {
+    0%   { outline-color: #00a32a; background-color: rgba(0,163,42,.1); }
+    70%  { outline-color: #00a32a; background-color: rgba(0,163,42,.06); }
+    100% { outline-color: #0073aa; background-color: rgba(0,115,170,.06); }
+}
+.cwt-element-saved {
+    outline: 2px solid #00a32a !important;
+    outline-offset: 2px !important;
+    background-color: rgba(0, 163, 42, .08) !important;
+    animation: cwt-saved-flash 1.2s ease forwards !important;
+}
+
+/* --- Pencil icon — positioned inside top-right to avoid viewport clipping --- */
 .cwt-pencil {
     position: absolute !important;
-    top: -10px !important;
-    left: -10px !important;
+    top: 4px !important;
+    right: 4px !important;
     width: 22px !important;
     height: 22px !important;
     padding: 0 !important;
     margin: 0 !important;
     background: #0073aa !important;
     color: #ffffff !important;
-    border: 2px solid #ffffff !important;
-    border-radius: 50% !important;
+    border: none !important;
+    border-radius: 4px !important;
     font-size: 11px !important;
     line-height: 1 !important;
     cursor: pointer !important;
@@ -321,18 +334,60 @@ body.cwt-editor-active #wpadminbar {
     align-items: center !important;
     justify-content: center !important;
     z-index: 99999 !important;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, .25) !important;
-    transition: background 0.12s, transform 0.12s !important;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, .3) !important;
+    transition: background 0.12s, transform 0.1s !important;
+    opacity: 0.85 !important;
 }
 
 .cwt-translatable:hover .cwt-pencil {
     display: flex !important;
+    opacity: 1 !important;
 }
 
 .cwt-pencil:hover {
     background: #005a87 !important;
-    transform: scale(1.15) !important;
+    transform: scale(1.1) !important;
+    opacity: 1 !important;
 }
+
+/* --- String Translation panel (tab 2) --- */
+.cwt-string-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px;
+    background: #f6f7f7;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+}
+
+.cwt-string-panel__title {
+    font-size: 13px;
+    font-weight: 700;
+    color: #1d2327;
+    margin: 0;
+}
+
+.cwt-string-panel__text {
+    font-size: 12px;
+    color: #646970;
+    line-height: 1.6;
+    margin: 0;
+}
+
+.cwt-string-panel__link {
+    display: inline-block;
+    padding: 7px 14px;
+    background: #0073aa;
+    color: #ffffff;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    text-decoration: none;
+    width: fit-content;
+    transition: background 0.15s;
+}
+.cwt-string-panel__link:hover { background: #005a87; color: #fff; }
 
 /* ---------- Admin Bar Button ---------- */
 #wpadminbar #wp-admin-bar-cwt-translate-page > .ab-item {

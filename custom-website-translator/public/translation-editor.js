@@ -48,13 +48,48 @@
         const saveBot = document.getElementById( 'cwt-editor-save' );
         if ( saveBot ) saveBot.addEventListener( 'click', doSave );
 
-        // Tab switching (visual only for now)
-        document.querySelectorAll( '.cwt-sidebar-tab' ).forEach( function ( tab ) {
+        // Tab switching
+        document.querySelectorAll( '.cwt-sidebar-tab' ).forEach( function ( tab, index ) {
             tab.addEventListener( 'click', function () {
                 document.querySelectorAll( '.cwt-sidebar-tab' ).forEach( function ( t ) {
                     t.classList.remove( 'cwt-sidebar-tab--active' );
+                    t.setAttribute( 'aria-selected', 'false' );
                 } );
                 tab.classList.add( 'cwt-sidebar-tab--active' );
+                tab.setAttribute( 'aria-selected', 'true' );
+
+                const body = document.querySelector( '.cwt-sidebar-body' );
+                if ( ! body ) return;
+
+                if ( index === 1 ) {
+                    // String Translation tab: show info panel, hide editor content
+                    body.dataset.cwt = 'strings';
+                    showFields( false );
+                    document.getElementById( 'cwt-editor-hint' ).style.display = 'none';
+                    let panel = document.getElementById( 'cwt-string-panel' );
+                    if ( ! panel ) {
+                        panel = document.createElement( 'div' );
+                        panel.id        = 'cwt-string-panel';
+                        panel.className = 'cwt-string-panel';
+                        panel.innerHTML =
+                            '<p class="cwt-string-panel__title">String Translation</p>'
+                          + '<p class="cwt-string-panel__text">Manage all detected strings in the WordPress admin panel. '
+                          + 'Strings are collected automatically as pages are visited.</p>'
+                          + '<a class="cwt-string-panel__link" href="'
+                          + ( cfg.adminUrl || '/wp-admin/admin.php?page=cwt-translations' )
+                          + '" target="_blank">Open Translations Table ↗</a>';
+                        body.appendChild( panel );
+                    }
+                    panel.style.display = 'flex';
+                } else {
+                    // Translation Editor tab: restore normal view
+                    body.dataset.cwt = 'editor';
+                    const panel = document.getElementById( 'cwt-string-panel' );
+                    if ( panel ) panel.style.display = 'none';
+                    const hint = document.getElementById( 'cwt-editor-hint' );
+                    if ( hint ) hint.style.display = selectedEl ? 'none' : 'block';
+                    if ( selectedEl ) showFields( true );
+                }
             } );
         } );
     }
@@ -250,9 +285,16 @@
             .then( function ( res ) {
                 setSaving( false );
                 if ( res.success ) {
-                    showMsg( '✓ Gespeichert!', 'success' );
+                    showMsg( '✓ Saved!', 'success' );
+                    // Flash the element green so the user sees which text was just saved
+                    if ( selectedEl ) {
+                        selectedEl.classList.add( 'cwt-element-saved' );
+                        setTimeout( function () {
+                            if ( selectedEl ) selectedEl.classList.remove( 'cwt-element-saved' );
+                        }, 1200 );
+                    }
                 } else {
-                    showMsg( ( res.data && res.data.message ) || 'Fehler beim Speichern.', 'error' );
+                    showMsg( ( res.data && res.data.message ) || 'Error saving. Please try again.', 'error' );
                 }
             } )
             .catch( function () {

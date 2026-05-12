@@ -23,41 +23,41 @@ define( 'CWT_PLUGIN_BASENAME', plugin_basename( __FILE__ ) );
 
 // Simple class map autoloader — keeps the includes folder tidy.
 spl_autoload_register( function ( string $class ): void {
-    $map = [
-        'CWT_Activator'         => CWT_PLUGIN_DIR . 'includes/class-cwt-activator.php',
-        'CWT_Database'          => CWT_PLUGIN_DIR . 'includes/class-cwt-database.php',
-        'CWT_Translator'        => CWT_PLUGIN_DIR . 'includes/class-cwt-translator.php',
-        'CWT_Language_Switcher' => CWT_PLUGIN_DIR . 'includes/class-cwt-language-switcher.php',
-        'CWT_Frontend'          => CWT_PLUGIN_DIR . 'includes/class-cwt-frontend.php',
-        'CWT_Admin'             => CWT_PLUGIN_DIR . 'includes/class-cwt-admin.php',
-    ];
-    if ( isset( $map[ $class ] ) ) {
-        require_once $map[ $class ];
-    }
+	$map = [
+		'CWT_Activator'         => CWT_PLUGIN_DIR . 'includes/class-cwt-activator.php',
+		'CWT_Database'          => CWT_PLUGIN_DIR . 'includes/class-cwt-database.php',
+		'CWT_Translator'        => CWT_PLUGIN_DIR . 'includes/class-cwt-translator.php',
+		'CWT_Language_Switcher' => CWT_PLUGIN_DIR . 'includes/class-cwt-language-switcher.php',
+		'CWT_Frontend'          => CWT_PLUGIN_DIR . 'includes/class-cwt-frontend.php',
+		'CWT_Admin'             => CWT_PLUGIN_DIR . 'includes/class-cwt-admin.php',
+	];
+	if ( isset( $map[ $class ] ) ) {
+		require_once $map[ $class ];
+	}
 } );
 
 register_activation_hook( __FILE__, [ 'CWT_Activator', 'activate' ] );
 register_deactivation_hook( __FILE__, [ 'CWT_Activator', 'deactivate' ] );
 
 function cwt_init(): void {
-    load_plugin_textdomain( 'custom-website-translator', false, dirname( CWT_PLUGIN_BASENAME ) . '/languages' );
+	load_plugin_textdomain( 'custom-website-translator', false, dirname( CWT_PLUGIN_BASENAME ) . '/languages' );
 
-    CWT_Database::instance();
+	CWT_Database::instance();
 
-    // Run dbDelta whenever the plugin version advances so new columns
-    // are added automatically — no manual deactivate/reactivate needed.
-    $stored = get_option( 'cwt_db_version', '0' );
-    if ( version_compare( $stored, CWT_VERSION, '<' ) ) {
-        CWT_Database::instance()->install();
-        update_option( 'cwt_db_version', CWT_VERSION );
-    }
+	// Run dbDelta whenever the plugin version advances so new columns
+	// are added automatically — no manual deactivate/reactivate needed.
+	$stored = get_option( 'cwt_db_version', '0' );
+	if ( version_compare( $stored, CWT_VERSION, '<' ) ) {
+		CWT_Database::instance()->install();
+		update_option( 'cwt_db_version', CWT_VERSION );
+	}
 
-    CWT_Translator::instance();
-    CWT_Language_Switcher::instance();
-    CWT_Frontend::instance();
+	CWT_Translator::instance();
+	CWT_Language_Switcher::instance();
+	CWT_Frontend::instance();
 
-    if ( is_admin() ) {
-        CWT_Admin::instance();
-    }
+	if ( is_admin() ) {
+		CWT_Admin::instance();
+	}
 }
 add_action( 'plugins_loaded', 'cwt_init' );

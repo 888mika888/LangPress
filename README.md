@@ -7,7 +7,7 @@ A WordPress plugin for multilingual websites with a visual, manual translation e
 ![License](https://img.shields.io/badge/License-GPL%20v2-green)
 ![Version](https://img.shields.io/badge/Version-1.2.0-orange)
 
-> **Note:** This plugin was built for a specific use case and is not actively maintained. Pull requests are welcome but response times may be slow.
+> **Note:** This plugin was built for a specific use case — a multilingual website that needed German, English, and Ukrainian — and is shared as-is. It is not actively maintained. Pull requests are welcome, but response times may vary.
 
 ---
 
@@ -226,14 +226,9 @@ custom-website-translator/
 
 ## Contributing
 
-Pull requests are welcome. For larger changes, open an issue first so we can discuss the approach before you invest time in it.
+Pull requests are welcome. Response times may vary — this is a personal project and not actively maintained.
 
-1. Fork the repository
-2. Create a branch (`git checkout -b feature/my-change`)
-3. Commit your changes
-4. Open a pull request
-
-Please follow [WordPress Coding Standards](https://developer.wordpress.org/coding-standards/wordpress-coding-standards/) for PHP.
+PHP code should follow [WordPress Coding Standards](https://developer.wordpress.org/coding-standards/wordpress-coding-standards/).
 
 ---
 

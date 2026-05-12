@@ -101,11 +101,11 @@ Click **Translate Page** in the WordPress admin bar at the top. This opens a sid
 │  ─────────────────  │        Your live website                 │
 │  From German        │                                          │
 │  ┌───────────────┐  │   ┌─────────────────────────────────┐    │
-│  │ Original text │  │   │ ✎  Heading text                 │    │
+│  │ Original text │  │   │ ✎  Heading text                │    │
 │  └───────────────┘  │   └─────────────────────────────────┘    │
 │  To English         │                                          │
 │  ┌───────────────┐  │   Paragraph text here. Click any         │
-│  │               │  │   text block to translate it. ✎          │
+│  │               │  │   text block to translate it. ✎         │
 │  └───────────────┘  │                                          │
 │  To Ukrainian       │                                          │
 │  ┌───────────────┐  │                                          │

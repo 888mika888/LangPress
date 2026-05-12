@@ -201,6 +201,24 @@
     }
 }
 
+/* ---------- RTL languages (e.g. Arabic) ---------- */
+.lp-switcher--rtl,
+.lp-switcher--rtl .lp-switcher__current,
+.lp-switcher--rtl .lp-switcher__link {
+    direction: rtl;
+    text-align: right;
+}
+
+.lp-switcher--rtl .lp-switcher__arrow {
+    margin-left: 0;
+    margin-right: auto;
+}
+
+.lp-switcher--rtl .lp-switcher__list {
+    left: auto;
+    right: 0;
+}
+
 /* ---------- Zugänglichkeit: Focus-Ring ---------- */
 .lp-switcher__link:focus-visible,
 .lp-switcher__current:focus-visible {

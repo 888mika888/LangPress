@@ -5,7 +5,7 @@ A WordPress plugin for multilingual websites with a visual, manual translation e
 ![WordPress](https://img.shields.io/badge/WordPress-6.0%2B-blue?logo=wordpress)
 ![PHP](https://img.shields.io/badge/PHP-8.1%2B-777bb4?logo=php)
 ![License](https://img.shields.io/badge/License-GPL%20v2-green)
-![Version](https://img.shields.io/badge/Version-1.2.0-orange)
+![Version](https://img.shields.io/badge/Version-1.3.0-orange)
 
 > **Note:** LangPress was originally built for a specific multilingual website using German, English, and Ukrainian. It is shared as-is as an open-source project. It is not actively maintained, but pull requests and improvements are welcome.
 
@@ -181,9 +181,8 @@ When a visitor loads a page in a non-default language:
 
 ## Known Limitations
 
-- **Page caching plugins** (WP Rocket, W3 Total Cache full-page cache) — cached pages bypass the output buffer, so translations are not applied. You would need to configure your cache plugin to serve separate cached versions per language cookie or disable full-page caching.
+- **Page caching plugins** (WP Rocket, W3 Total Cache full-page cache, LiteSpeed Cache, WP Super Cache) — cached pages bypass the output buffer, so translations are not applied. LangPress shows a warning in its admin panels when one of these plugins is detected. You would need to configure your cache plugin to serve separate cached versions per language cookie or disable full-page caching.
 - **JavaScript-rendered content** — text injected by JavaScript after page load (React, Vue, Elementor widgets, etc.) is not captured by the PHP output buffer and will not be translated.
-- **No hreflang tags** — the plugin does not add `hreflang` meta tags. If SEO for multiple languages matters, add these manually or via a separate SEO plugin.
 
 ---
 
@@ -291,6 +290,12 @@ See the [LICENSE](LICENSE) file for details.
 ---
 
 ## Changelog
+
+### 1.3.0
+- **hreflang tags** — `<link rel="alternate" hreflang="...">` tags are now injected into `<head>` for every active language, including `x-default`. This tells search engines about language alternatives and prevents duplicate-content penalties.
+- **RTL support** — Arabic now renders correctly. The `<html>` tag gets `dir="rtl"` automatically when Arabic is the active language, and the language switcher adapts its layout for right-to-left text.
+- **Caching plugin warning** — a notice appears on all LangPress admin pages when WP Rocket, W3 Total Cache, LiteSpeed Cache, WP Super Cache, Cache Enabler, or Comet Cache is active, explaining the output-buffer incompatibility.
+- **Import file size limit** — JSON imports are now rejected if the file exceeds 10 MB, preventing memory exhaustion on large uploads.
 
 ### 1.2.0
 - Visual Translation Editor: "Translate Page" button in admin bar opens a full sidebar editor

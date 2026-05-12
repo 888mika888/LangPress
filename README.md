@@ -25,6 +25,7 @@ When you click **Translate Page** in the admin bar, a sidebar opens alongside yo
 ## Features
 
 - **Visual editor** — translate text directly on the live page without touching the WordPress editor
+- **Human translations only** — no auto-translation; every string is written by a human, ensuring accuracy and tone
 - **No duplicate pages** — translations are swapped in via PHP output buffering at runtime
 - **Manual control** — you decide what gets translated; ignored strings are never suggested again
 - **Language switcher** — fixed-position dropdown or buttons that appear on every page

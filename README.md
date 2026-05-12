@@ -49,10 +49,9 @@ LangPress lets you translate a WordPress site into multiple languages by clickin
 
 **Via ZIP (easiest)**
 
-1. Download `LangPress-main.zip` from [Releases](../../releases)
-2. Extract the ZIP File
-3. Go to **WordPress Admin → Plugins → Add New → Upload Plugin**
-4. Select the ZIP inside of the extracted Folder → **Install Now** → **Activate**
+1. Download `langpress.zip` from [Releases](../../releases)
+2. Go to **WordPress Admin → Plugins → Add New → Upload Plugin**
+3. Select the ZIP → **Install Now** → **Activate**
 
 **Via FTP**
 

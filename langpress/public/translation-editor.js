@@ -110,6 +110,7 @@
     function shouldSkip( el ) {
         if ( el.closest( '#lp-editor-sidebar' ) ) return true;
         if ( el.closest( '#wpadminbar' ) )         return true;
+        if ( el.closest( '.lp-switcher' ) )        return true;
         if ( el.closest( '[translate="no"]' ) )    return true;
         if ( SKIP_TAGS.has( el.tagName.toLowerCase() ) ) return true;
 

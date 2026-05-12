@@ -240,6 +240,10 @@ class LP_Translator {
 	 *
 	 * @return array<string, array{label: string, native: string, flag: string}>
 	 */
+	public static function is_rtl_language( string $lang_code ): bool {
+		return in_array( $lang_code, [ 'ar' ], true );
+	}
+
 	public static function available_languages(): array {
 		return [
 			'de' => [ 'label' => 'German',     'native' => 'Deutsch',    'flag' => '🇩🇪' ],

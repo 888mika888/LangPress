@@ -25,6 +25,8 @@ class LP_Admin {
 
 		// Plugin-Aktionslinks
 		add_filter( 'plugin_action_links_' . LP_PLUGIN_BASENAME, [ $this, 'plugin_action_links' ] );
+
+		add_action( 'admin_notices', [ $this, 'notice_caching_plugin' ] );
 	}
 
 	public static function instance(): self {
@@ -288,6 +290,11 @@ class LP_Admin {
 	private function process_import(): void {
 		if ( ! isset( $_FILES['lp_import_file'] ) || $_FILES['lp_import_file']['error'] !== UPLOAD_ERR_OK ) {
 			add_settings_error( 'lp', 'lp_import_error', __( 'Keine Datei hochgeladen.', 'langpress' ), 'error' );
+			return;
+		}
+
+		if ( $_FILES['lp_import_file']['size'] > 10 * 1024 * 1024 ) {
+			add_settings_error( 'lp', 'lp_import_error', __( 'Datei zu groß. Maximum: 10 MB.', 'langpress' ), 'error' );
 			return;
 		}
 
@@ -1206,6 +1213,47 @@ class LP_Admin {
 			'ignored' => __( 'Ignoriert', 'langpress' ),
 			default   => __( 'Ausstehend', 'langpress' ),
 		};
+	}
+
+	public function notice_caching_plugin(): void {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$page = sanitize_key( wp_unslash( $_GET['page'] ?? '' ) );
+		if ( strpos( $page, 'lp-' ) !== 0 ) {
+			return;
+		}
+
+		$known = [
+			'wp-rocket/wp-rocket.php'             => 'WP Rocket',
+			'w3-total-cache/w3-total-cache.php'   => 'W3 Total Cache',
+			'litespeed-cache/litespeed-cache.php' => 'LiteSpeed Cache',
+			'wp-super-cache/wp-cache.php'         => 'WP Super Cache',
+			'cache-enabler/cache-enabler.php'     => 'Cache Enabler',
+			'comet-cache/comet-cache.php'         => 'Comet Cache',
+		];
+
+		$found = [];
+		foreach ( $known as $file => $name ) {
+			if ( is_plugin_active( $file ) ) {
+				$found[] = $name;
+			}
+		}
+
+		if ( empty( $found ) ) {
+			return;
+		}
+
+		$names   = '<strong>' . esc_html( implode( ', ', $found ) ) . '</strong>';
+		$message = sprintf(
+			/* translators: %s: comma-separated list of caching plugin names */
+			__( '%s detected. Page caching can bypass LangPress\'s output buffer — translations may not appear on cached pages. Exclude translated URLs from your cache, or flush the cache after saving translations.', 'langpress' ),
+			$names
+		);
+
+		echo '<div class="notice notice-warning"><p>';
+		echo '<strong>' . esc_html__( 'LangPress:', 'langpress' ) . '</strong> ';
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		echo wp_kses_post( $message );
+		echo '</p></div>';
 	}
 
 	public function plugin_action_links( array $links ): array {

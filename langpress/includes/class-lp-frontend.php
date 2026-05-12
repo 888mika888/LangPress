@@ -20,6 +20,8 @@ class LP_Frontend {
 			return;
 		}
 
+		add_action( 'wp_head',           [ $this, 'inject_hreflang_tags' ] );
+		add_filter( 'language_attributes', [ $this, 'maybe_add_rtl_dir' ] );
 		add_action( 'template_redirect', [ $this, 'maybe_start_editor_mode' ], 0 );
 		add_action( 'template_redirect', [ $this, 'start_output_buffer' ], 1 );
 		add_action( 'template_redirect', [ $this, 'maybe_register_texts' ], 5 );
@@ -279,6 +281,36 @@ class LP_Frontend {
 		foreach ( $node->childNodes as $child ) {
 			$this->collect_texts( $child, $texts );
 		}
+	}
+
+	public function inject_hreflang_tags(): void {
+		$active_langs = (array) get_option( 'lp_active_languages', [ 'de', 'en', 'uk' ] );
+		if ( count( $active_langs ) < 2 ) {
+			return;
+		}
+
+		$default_lang = get_option( 'lp_default_language', 'de' );
+		$base_url     = remove_query_arg( 'lp_lang', $this->get_current_url() );
+
+		foreach ( $active_langs as $lang_code ) {
+			$href = ( $lang_code === $default_lang )
+				? $base_url
+				: add_query_arg( 'lp_lang', $lang_code, $base_url );
+			echo '<link rel="alternate" hreflang="' . esc_attr( $lang_code ) . '" href="' . esc_url( $href ) . '">' . "\n";
+		}
+
+		// x-default points to the default-language URL with no lang override.
+		echo '<link rel="alternate" hreflang="x-default" href="' . esc_url( $base_url ) . '">' . "\n";
+	}
+
+	public function maybe_add_rtl_dir( string $output ): string {
+		if ( ! LP_Translator::is_rtl_language( LP_Translator::instance()->get_current_language() ) ) {
+			return $output;
+		}
+		if ( strpos( $output, 'dir=' ) !== false ) {
+			return preg_replace( '/dir="[^"]*"/', 'dir="rtl"', $output ) ?? $output;
+		}
+		return $output . ' dir="rtl"';
 	}
 
 	private function get_current_url(): string {

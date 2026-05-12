@@ -159,6 +159,9 @@ class LP_Language_Switcher {
 		} elseif ( $fixed ) {
 			$wrapper_class .= ' lp-switcher--fixed lp-switcher--' . esc_attr( $position );
 		}
+		if ( LP_Translator::is_rtl_language( $current_lang ) ) {
+			$wrapper_class .= ' lp-switcher--rtl';
+		}
 
 		$html  = '<div class="' . esc_attr( $wrapper_class ) . '" style="' . esc_attr( $custom_css ) . '">';
 		$html .= '<span class="lp-switcher__current">';

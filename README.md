@@ -73,9 +73,13 @@ The language switcher will now appear on every page for all visitors.
 
 ---
 
-## Using the Visual Editor
+## Translation Modes
 
-The editor is opened via **Translate Page** in the WordPress admin bar. It is only visible to administrators.
+There are two ways to translate as an admin. Both are only visible to administrators — regular visitors never see them.
+
+### Translate Page (full editor)
+
+Click **Translate Page** in the WordPress admin bar at the top. This opens a sidebar alongside your live page in its original language.
 
 ```
 ┌─────────────────────┬──────────────────────────────────────────┐
@@ -98,9 +102,19 @@ The editor is opened via **Translate Page** in the WordPress admin bar. It is on
 ```
 
 - Hover any text block → a pencil icon appears
-- Click the pencil (or the text itself) → the original text loads in the sidebar; any existing translations are pre-filled
-- Edit the translation fields and click **Save** — it goes live immediately
-- Regular visitors never see the editor or pencil icons
+- Click the pencil → the original text loads in the sidebar; any existing translations are pre-filled
+- All target languages are shown at once — translate English and Ukrainian in one step
+- Click **Save** — goes live immediately
+
+### Quick Translate (floating button)
+
+A **✎ Seite übersetzen** button appears in the bottom-left corner of every frontend page when you are logged in as an admin. Click it to open a floating sidebar.
+
+- Select the target language from the dropdown
+- Click any pencil icon on the page → type the translation → **Speichern**
+- Translates one language at a time
+- The mode stays active as you navigate between pages (stored in sessionStorage)
+- Click **✎ Modus beenden** or the × button to close it
 
 ---
 
@@ -131,6 +145,8 @@ When a visitor clicks a language, the page reloads with `?lp_lang=en` (or `uk`) 
 | **Design** | Style the switcher: dropdown vs buttons, text/flag/both, colors, sizes |
 | **Import / Export** | Back up and restore translations as JSON |
 | **Debug / Status** | Check system info, clear cache, reinstall DB tables |
+
+> **Note:** The admin panels are always displayed in German. The plugin does not ship with translation files for the WordPress admin UI. This is intentional — it was built for a specific German-language project. If you need the admin UI in another language, you can create your own `.po`/`.mo` files in the `languages/` folder using the text domain `langpress`.
 
 ---
 

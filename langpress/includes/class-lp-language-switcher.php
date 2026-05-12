@@ -105,6 +105,7 @@ class LP_Language_Switcher {
 			'currentLang' => LP_Translator::instance()->get_current_language(),
 			'defaultLang' => get_option( 'lp_default_language', 'de' ),
 			'activeLangs' => get_option( 'lp_active_languages', [ 'de', 'en', 'uk' ] ),
+			'langMeta'    => LP_Translator::available_languages(),
 		] );
 	}
 

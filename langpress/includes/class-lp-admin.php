@@ -145,13 +145,15 @@ class LP_Admin {
 			'ajaxUrl' => admin_url( 'admin-ajax.php' ),
 			'nonce'   => wp_create_nonce( 'lp_admin_nonce' ),
 			'i18n'    => [
-				'saved'   => __( 'Gespeichert!', 'langpress' ),
-				'saveBtn' => __( 'Speichern', 'langpress' ),
-				'error'   => __( 'Fehler beim Speichern.', 'langpress' ),
-				'confirm' => __( 'Wirklich löschen?', 'langpress' ),
-				'active'  => __( 'Aktiv', 'langpress' ),
-				'pending' => __( 'Ausstehend', 'langpress' ),
-				'ignored' => __( 'Ignoriert', 'langpress' ),
+				'saved'           => __( 'Gespeichert!', 'langpress' ),
+				'saveBtn'         => __( 'Speichern', 'langpress' ),
+				'error'           => __( 'Fehler beim Speichern.', 'langpress' ),
+				'confirm'         => __( 'Wirklich löschen?', 'langpress' ),
+				'deleted'         => __( 'Deleted.', 'langpress' ),
+				'reinstallConfirm'=> __( 'Reinstall database tables? Existing data will be kept (dbDelta).', 'langpress' ),
+				'active'          => __( 'Aktiv', 'langpress' ),
+				'pending'         => __( 'Ausstehend', 'langpress' ),
+				'ignored'         => __( 'Ignoriert', 'langpress' ),
 			],
 		] );
 	}
@@ -313,7 +315,8 @@ class LP_Admin {
 		$count   = 0;
 
 		if ( ! is_array( $data ) ) {
-			add_settings_error( 'lp', 'lp_import_error', __( 'Ungültige JSON-Datei.', 'langpress' ), 'error' );
+			$json_err = json_last_error() !== JSON_ERROR_NONE ? ' (' . json_last_error_msg() . ')' : '';
+			add_settings_error( 'lp', 'lp_import_error', __( 'Ungültige JSON-Datei.', 'langpress' ) . esc_html( $json_err ), 'error' );
 			return;
 		}
 

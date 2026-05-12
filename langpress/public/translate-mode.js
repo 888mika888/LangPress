@@ -17,19 +17,8 @@
     const BLOCK_SEL = 'p, h1, h2, h3, h4, h5, h6, li, td, th, dt, dd, figcaption, blockquote';
     const LEAF_SEL  = 'a, button, label';
 
-    // Sprachdaten
-    const LANG_META = {
-        de: { label: 'Deutsch',    flag: '🇩🇪' },
-        en: { label: 'English',    flag: '🇬🇧' },
-        uk: { label: 'Українська', flag: '🇺🇦' },
-        fr: { label: 'Français',   flag: '🇫🇷' },
-        es: { label: 'Español',    flag: '🇪🇸' },
-        it: { label: 'Italiano',   flag: '🇮🇹' },
-        tr: { label: 'Türkçe',     flag: '🇹🇷' },
-        pl: { label: 'Polski',     flag: '🇵🇱' },
-        ru: { label: 'Русский',    flag: '🇷🇺' },
-        ar: { label: 'العربية',    flag: '🇸🇦' },
-    };
+    // Sprachdaten – kommen von PHP (LP_Translate.langMeta) damit JS immer aktuell ist.
+    const LANG_META = cfg.langMeta || {};
 
     // Status
     let modeActive      = sessionStorage.getItem( 'lp_translate_mode' ) === '1';
@@ -124,15 +113,15 @@
         const options = active
             .filter( function ( l ) { return l !== defLang; } )
             .map( function ( l ) {
-                const meta = LANG_META[ l ] || { flag: '', label: l.toUpperCase() };
+                const meta = LANG_META[ l ] || { flag: '', native: l.toUpperCase() };
                 return '<option value="' + l + '"' + ( l === targetLang ? ' selected' : '' ) + '>'
-                     + meta.flag + ' ' + meta.label
+                     + meta.flag + ' ' + meta.native
                      + '</option>';
             } )
             .join( '' );
 
-        const defMeta   = LANG_META[ defLang ] || { flag: '', label: defLang.toUpperCase() };
-        const fromLabel = defMeta.flag + ' ' + defMeta.label;
+        const defMeta   = LANG_META[ defLang ] || { flag: '', native: defLang.toUpperCase() };
+        const fromLabel = defMeta.flag + ' ' + defMeta.native;
 
         const sidebar = document.createElement( 'div' );
         sidebar.id = 'lp-sidebar';
@@ -197,9 +186,9 @@
     }
 
     function updateTargetLabel() {
-        const meta  = LANG_META[ targetLang ] || { flag: '', label: targetLang.toUpperCase() };
+        const meta  = LANG_META[ targetLang ] || { flag: '', native: targetLang.toUpperCase() };
         const label = document.getElementById( 'lp-to-label' );
-        if ( label ) label.textContent = meta.flag + ' ' + meta.label;
+        if ( label ) label.textContent = meta.flag + ' ' + meta.native;
     }
 
     // -----------------------------------------------------------------------
@@ -353,7 +342,10 @@
         fd.append( 'original', originalText );
 
         fetch( cfg.ajaxUrl, { method: 'POST', body: fd, credentials: 'same-origin' } )
-            .then( function ( r ) { return r.json(); } )
+            .then( function ( r ) {
+                if ( ! r.ok ) throw new Error( 'HTTP ' + r.status );
+                return r.json();
+            } )
             .then( function ( res ) {
                 if ( ta ) ta.placeholder = 'Übersetzung eingeben…';
                 if ( ! res.success ) return;
@@ -396,7 +388,10 @@
         fd.append( 'status',     'active' );
 
         fetch( cfg.ajaxUrl, { method: 'POST', body: fd, credentials: 'same-origin' } )
-            .then( function ( r ) { return r.json(); } )
+            .then( function ( r ) {
+                if ( ! r.ok ) throw new Error( 'HTTP ' + r.status );
+                return r.json();
+            } )
             .then( function ( res ) {
                 if ( res.success ) {
                     showMsg( '✓ Gespeichert!', 'success' );

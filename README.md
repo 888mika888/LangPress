@@ -257,8 +257,10 @@ Pull requests are welcome.
 
 This is a personal project and is not actively maintained, so response times may vary
 Please make sure that PHP code follows the [WordPress Coding Standards](https://developer.wordpress.org/coding-standards/wordpress-coding-standards/)
+
 LangPress was created because I struggled to find a simple translation and language-switching plugin that fit my needs. I hope it can be useful for others as well
 Contributions, improvements, updated versions, or even a fully upgraded plugin based on LangPress are very welcome :)
+
 When I have time, I will review reported issues and try to fix them
 I hope this open-source project can grow and evolve with the WordPress community
 

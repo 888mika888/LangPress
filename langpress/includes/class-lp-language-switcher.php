@@ -122,7 +122,7 @@ class LP_Language_Switcher {
 		$page_ids = (array) get_option( 'lp_switcher_pages', [] );
 
 		if ( $display_mode === 'specific' ) {
-			return is_page( $page_ids ) || is_singular() && in_array( get_the_ID(), $page_ids, true );
+			return is_page( $page_ids ) || ( is_singular() && in_array( get_the_ID(), $page_ids, true ) );
 		}
 
 		if ( $display_mode === 'exclude' ) {

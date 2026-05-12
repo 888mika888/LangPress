@@ -191,14 +191,14 @@ Unique index on `(text_hash, language_code)`.
 
 ```
 langpress/
-├── custom-website-translator.php        # Bootstrap, constants, autoloader
+├── langpress.php        # Bootstrap, constants, autoloader
 ├── includes/
-│   ├── class-cwt-activator.php          # DB install, default options on activation
-│   ├── class-cwt-database.php           # All DB operations and schema migration
-│   ├── class-cwt-translator.php         # Language detection, cache, DOM text replacement
-│   ├── class-cwt-frontend.php           # Output buffering, admin bar button, editor mode
-│   ├── class-cwt-language-switcher.php  # Switcher HTML, shortcode, widget, AJAX
-│   └── class-cwt-admin.php              # All admin pages and AJAX handlers
+│   ├── class-lp-activator.php          # DB install, default options on activation
+│   ├── class-lp-database.php           # All DB operations and schema migration
+│   ├── class-lp-translator.php         # Language detection, cache, DOM text replacement
+│   ├── class-lp-frontend.php           # Output buffering, admin bar button, editor mode
+│   ├── class-lp-language-switcher.php  # Switcher HTML, shortcode, widget, AJAX
+│   └── class-lp-admin.php              # All admin pages and AJAX handlers
 ├── public/
 │   ├── public.{css,js}                  # Language switcher styles and interaction
 │   ├── translate-mode.{css,js}          # Floating quick-translate sidebar

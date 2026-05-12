@@ -218,7 +218,7 @@ class LP_Admin {
 		update_option( 'lp_switcher_pages',    $pages );
 		update_option( 'lp_position_fixed',    isset( $_POST['lp_position_fixed'] ) ? 1 : 0 );
 
-		add_settings_error( 'cwt', 'lp_saved', __( 'Einstellungen gespeichert.', 'langpress' ), 'success' );
+		add_settings_error( 'lp', 'lp_saved', __( 'Einstellungen gespeichert.', 'langpress' ), 'success' );
 	}
 
 	private function save_languages(): void {
@@ -250,7 +250,7 @@ class LP_Admin {
 		// Cache leeren nach Sprachänderung
 		LP_Translator::instance()->invalidate_cache();
 
-		add_settings_error( 'cwt', 'lp_saved', __( 'Sprachen gespeichert.', 'langpress' ), 'success' );
+		add_settings_error( 'lp', 'lp_saved', __( 'Sprachen gespeichert.', 'langpress' ), 'success' );
 	}
 
 	private function save_design(): void {
@@ -282,12 +282,12 @@ class LP_Admin {
 		update_option( 'lp_switcher_style', $style );
 		update_option( 'lp_display_mode',   $mode );
 
-		add_settings_error( 'cwt', 'lp_saved', __( 'Design gespeichert.', 'langpress' ), 'success' );
+		add_settings_error( 'lp', 'lp_saved', __( 'Design gespeichert.', 'langpress' ), 'success' );
 	}
 
 	private function process_import(): void {
 		if ( ! isset( $_FILES['lp_import_file'] ) || $_FILES['lp_import_file']['error'] !== UPLOAD_ERR_OK ) {
-			add_settings_error( 'cwt', 'lp_import_error', __( 'Keine Datei hochgeladen.', 'langpress' ), 'error' );
+			add_settings_error( 'lp', 'lp_import_error', __( 'Keine Datei hochgeladen.', 'langpress' ), 'error' );
 			return;
 		}
 
@@ -295,7 +295,7 @@ class LP_Admin {
 		$ext      = strtolower( pathinfo( sanitize_file_name( $_FILES['lp_import_file']['name'] ), PATHINFO_EXTENSION ) );
 
 		if ( $ext !== 'json' ) {
-			add_settings_error( 'cwt', 'lp_import_error', __( 'Nur JSON-Dateien werden unterstützt.', 'langpress' ), 'error' );
+			add_settings_error( 'lp', 'lp_import_error', __( 'Nur JSON-Dateien werden unterstützt.', 'langpress' ), 'error' );
 			return;
 		}
 
@@ -306,7 +306,7 @@ class LP_Admin {
 		$count   = 0;
 
 		if ( ! is_array( $data ) ) {
-			add_settings_error( 'cwt', 'lp_import_error', __( 'Ungültige JSON-Datei.', 'langpress' ), 'error' );
+			add_settings_error( 'lp', 'lp_import_error', __( 'Ungültige JSON-Datei.', 'langpress' ), 'error' );
 			return;
 		}
 
@@ -330,7 +330,7 @@ class LP_Admin {
 		LP_Translator::instance()->invalidate_cache();
 
 		add_settings_error(
-			'cwt',
+			'lp',
 			'lp_import_success',
 			sprintf( __( '%d Übersetzungen importiert.', 'langpress' ), $count ),
 			'success'
@@ -586,7 +586,7 @@ class LP_Admin {
 			wp_die( esc_html__( 'Zugriff verweigert.', 'langpress' ) );
 		}
 
-		settings_errors( 'cwt' );
+		settings_errors( 'lp' );
 		$pages    = get_pages();
 		$display  = get_option( 'lp_switcher_display', 'all' );
 		$position = get_option( 'lp_switcher_position', 'bottom-right' );
@@ -594,7 +594,7 @@ class LP_Admin {
 		$fixed    = (bool) get_option( 'lp_position_fixed', false );
 		?>
 		<div class="wrap lp-wrap">
-			<h1><?php esc_html_e( 'CWT – Einstellungen', 'langpress' ); ?></h1>
+			<h1><?php esc_html_e( 'LangPress – Einstellungen', 'langpress' ); ?></h1>
 			<?php $this->render_nav( 'lp-settings' ); ?>
 
 			<form method="post" class="lp-form">
@@ -683,13 +683,13 @@ class LP_Admin {
 			wp_die( esc_html__( 'Zugriff verweigert.', 'langpress' ) );
 		}
 
-		settings_errors( 'cwt' );
+		settings_errors( 'lp' );
 		$all_langs   = LP_Translator::available_languages();
 		$active      = (array) get_option( 'lp_active_languages', [ 'de', 'en', 'uk' ] );
 		$default     = get_option( 'lp_default_language', 'de' );
 		?>
 		<div class="wrap lp-wrap">
-			<h1><?php esc_html_e( 'CWT – Sprachen', 'langpress' ); ?></h1>
+			<h1><?php esc_html_e( 'LangPress – Sprachen', 'langpress' ); ?></h1>
 			<?php $this->render_nav( 'lp-languages' ); ?>
 
 			<form method="post" class="lp-form">
@@ -769,7 +769,7 @@ class LP_Admin {
 		$target_langs = array_filter( $active_langs, fn( $l ) => $l !== $default_lang );
 		?>
 		<div class="wrap lp-wrap">
-			<h1><?php esc_html_e( 'CWT – Übersetzungen', 'langpress' ); ?></h1>
+			<h1><?php esc_html_e( 'LangPress – Übersetzungen', 'langpress' ); ?></h1>
 			<?php $this->render_nav( 'lp-translations' ); ?>
 
 			<div class="lp-translations-header">
@@ -910,7 +910,7 @@ class LP_Admin {
 			wp_die( esc_html__( 'Zugriff verweigert.', 'langpress' ) );
 		}
 
-		settings_errors( 'cwt' );
+		settings_errors( 'lp' );
 
 		$opts = [
 			'lp_switcher_style' => get_option( 'lp_switcher_style', 'dropdown' ),
@@ -925,7 +925,7 @@ class LP_Admin {
 		];
 		?>
 		<div class="wrap lp-wrap">
-			<h1><?php esc_html_e( 'CWT – Design & Dropdown', 'langpress' ); ?></h1>
+			<h1><?php esc_html_e( 'LangPress – Design & Dropdown', 'langpress' ); ?></h1>
 			<?php $this->render_nav( 'lp-design' ); ?>
 
 			<form method="post" class="lp-form">
@@ -1043,10 +1043,10 @@ class LP_Admin {
 			wp_die( esc_html__( 'Zugriff verweigert.', 'langpress' ) );
 		}
 
-		settings_errors( 'cwt' );
+		settings_errors( 'lp' );
 		?>
 		<div class="wrap lp-wrap">
-			<h1><?php esc_html_e( 'CWT – Import / Export', 'langpress' ); ?></h1>
+			<h1><?php esc_html_e( 'LangPress – Import / Export', 'langpress' ); ?></h1>
 			<?php $this->render_nav( 'lp-import-export' ); ?>
 
 			<div class="lp-columns-2">
@@ -1092,7 +1092,7 @@ class LP_Admin {
 		$active_lang = LP_Translator::instance()->get_current_language();
 		?>
 		<div class="wrap lp-wrap">
-			<h1><?php esc_html_e( 'CWT – Debug / Status', 'langpress' ); ?></h1>
+			<h1><?php esc_html_e( 'LangPress – Debug / Status', 'langpress' ); ?></h1>
 			<?php $this->render_nav( 'lp-debug' ); ?>
 
 			<div class="lp-columns-2">

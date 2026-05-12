@@ -29,9 +29,20 @@ class LP_Database {
 	/**
 	 * Create or update the database tables via dbDelta.
 	 * Safe to call repeatedly — dbDelta only adds missing columns/tables.
+	 *
+	 * Also handles migration from the old cwt_ table prefix (renamed from
+	 * Custom Website Translator to LangPress) so existing data is preserved.
 	 */
 	public function install(): void {
 		global $wpdb;
+
+		// Migrate data from the old plugin's table if it still exists.
+		// This runs once and is a no-op afterwards.
+		$old_table = $wpdb->prefix . 'cwt_translations';
+		$exists    = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $old_table ) );
+		if ( $exists === $old_table ) {
+			$wpdb->query( "RENAME TABLE `{$old_table}` TO `{$this->table_translations}`" ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		}
 
 		$charset_collate = $wpdb->get_charset_collate();
 

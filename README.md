@@ -9,6 +9,9 @@ A WordPress plugin for multilingual websites with a visual, manual translation e
 
 > **Note:** LangPress was originally built for a specific multilingual website using German, English, and Ukrainian. It is shared as-is as an open-source project. It is not actively maintained, but pull requests and improvements are welcome.
 
+> **Important:** For WordPress installation, download the `langpress.zip` file from releases.
+> Do **not** use GitHub's automatically generated "Source code" ZIP, because it may not be installable as a WordPress plugin.
+
 ---
 
 ## What it does

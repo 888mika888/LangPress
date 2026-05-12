@@ -169,7 +169,7 @@ class LP_Database {
 			];
 			$format = [ '%s', '%s', '%s', '%s' ];
 
-			if ( $post_id > 0 ) {
+			if ( $post_id > 0 && $this->column_exists( 'post_id' ) ) {
 				$data['post_id'] = $post_id;
 				$format[]        = '%d';
 			}

@@ -290,7 +290,7 @@ class LP_Frontend {
 		}
 
 		$default_lang = get_option( 'lp_default_language', 'de' );
-		$base_url     = remove_query_arg( 'lp_lang', $this->get_current_url() );
+		$base_url     = remove_query_arg( [ 'lp_lang', 'lp_translation_editor' ], $this->get_current_url() );
 
 		foreach ( $active_langs as $lang_code ) {
 			$href = ( $lang_code === $default_lang )
@@ -304,13 +304,26 @@ class LP_Frontend {
 	}
 
 	public function maybe_add_rtl_dir( string $output ): string {
-		if ( ! LP_Translator::is_rtl_language( LP_Translator::instance()->get_current_language() ) ) {
+		$lang    = LP_Translator::instance()->get_current_language();
+		$default = get_option( 'lp_default_language', 'de' );
+
+		if ( $lang === $default ) {
 			return $output;
 		}
-		if ( strpos( $output, 'dir=' ) !== false ) {
-			return preg_replace( '/dir="[^"]*"/', 'dir="rtl"', $output ) ?? $output;
+
+		// Swap the lang attribute to match the active language so screen
+		// readers and SEO tools see the correct language code (e.g. "ar" not "de").
+		$output = preg_replace( '/lang="[^"]*"/', 'lang="' . esc_attr( $lang ) . '"', $output ) ?? $output;
+
+		if ( LP_Translator::is_rtl_language( $lang ) ) {
+			if ( strpos( $output, 'dir=' ) !== false ) {
+				$output = preg_replace( '/dir="[^"]*"/', 'dir="rtl"', $output ) ?? $output;
+			} else {
+				$output .= ' dir="rtl"';
+			}
 		}
-		return $output . ' dir="rtl"';
+
+		return $output;
 	}
 
 	private function get_current_url(): string {

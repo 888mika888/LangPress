@@ -6,7 +6,7 @@ defined( 'ABSPATH' ) || exit;
  *
  * Uses a singleton so the table name strings are only computed once.
  */
-class CWT_Database {
+class LP_Database {
 
 	private static ?self $instance = null;
 
@@ -15,8 +15,8 @@ class CWT_Database {
 
 	private function __construct() {
 		global $wpdb;
-		$this->table_translations = $wpdb->prefix . 'cwt_translations';
-		$this->table_settings     = $wpdb->prefix . 'cwt_settings';
+		$this->table_translations = $wpdb->prefix . 'lp_translations';
+		$this->table_settings     = $wpdb->prefix . 'lp_settings';
 	}
 
 	public static function instance(): self {
@@ -343,7 +343,7 @@ class CWT_Database {
 	 * Result is cached for an hour so repeated calls are free.
 	 */
 	private function column_exists( string $column ): bool {
-		$cache_key = 'cwt_col_' . $column;
+		$cache_key = 'lp_col_' . $column;
 		$cached    = wp_cache_get( $cache_key, 'cwt' );
 
 		if ( $cached !== false ) {

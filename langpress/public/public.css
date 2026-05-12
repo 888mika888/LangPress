@@ -1,66 +1,66 @@
 /* =========================================================
-   Custom Website Translator – Frontend-Sprachumschalter
+   LangPress – Frontend-Sprachumschalter
    ========================================================= */
 
 /* ---------- CSS-Custom-Properties (Fallback-Werte) ---------- */
-.cwt-switcher {
-    --cwt-bg:        #ffffff;
-    --cwt-text:      #333333;
-    --cwt-border:    #cccccc;
-    --cwt-hover:     #f0f0f0;
-    --cwt-radius:    4px;
-    --cwt-font-size: 14px;
-    --cwt-padding:   8px;
+.lp-switcher {
+    --lp-bg:        #ffffff;
+    --lp-text:      #333333;
+    --lp-border:    #cccccc;
+    --lp-hover:     #f0f0f0;
+    --lp-radius:    4px;
+    --lp-font-size: 14px;
+    --lp-padding:   8px;
 
     position: relative;
     display: inline-block;
     font-family: inherit;
-    font-size: var(--cwt-font-size);
-    color: var(--cwt-text);
+    font-size: var(--lp-font-size);
+    color: var(--lp-text);
     z-index: 9999;
     user-select: none;
     box-sizing: border-box;
 }
 
 /* ---------- Aktuelle Sprache (Trigger) ---------- */
-.cwt-switcher__current {
+.lp-switcher__current {
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: var(--cwt-padding) calc( var(--cwt-padding) * 1.5 );
-    background: var(--cwt-bg);
-    border: 1px solid var(--cwt-border);
-    border-radius: var(--cwt-radius);
+    padding: var(--lp-padding) calc( var(--lp-padding) * 1.5 );
+    background: var(--lp-bg);
+    border: 1px solid var(--lp-border);
+    border-radius: var(--lp-radius);
     cursor: pointer;
     white-space: nowrap;
     transition: background 0.15s, border-color 0.15s;
 }
 
-.cwt-switcher__current:hover {
-    background: var(--cwt-hover);
+.lp-switcher__current:hover {
+    background: var(--lp-hover);
 }
 
-.cwt-switcher__arrow {
+.lp-switcher__arrow {
     font-size: 10px;
     margin-left: auto;
     transition: transform 0.2s;
     display: inline-block;
 }
 
-.cwt-switcher--open .cwt-switcher__arrow {
+.lp-switcher--open .lp-switcher__arrow {
     transform: rotate(180deg);
 }
 
 /* ---------- Dropdown-Liste ---------- */
-.cwt-switcher__list {
+.lp-switcher__list {
     display: none;
     position: absolute;
     top: calc(100% + 2px);
     left: 0;
     min-width: 100%;
-    background: var(--cwt-bg);
-    border: 1px solid var(--cwt-border);
-    border-radius: var(--cwt-radius);
+    background: var(--lp-bg);
+    border: 1px solid var(--lp-border);
+    border-radius: var(--lp-radius);
     margin: 0;
     padding: 4px 0;
     list-style: none;
@@ -69,49 +69,49 @@
     overflow: hidden;
 }
 
-.cwt-switcher--open .cwt-switcher__list {
+.lp-switcher--open .lp-switcher__list {
     display: block;
-    animation: cwt-dropdown-in 0.15s ease;
+    animation: lp-dropdown-in 0.15s ease;
 }
 
-@keyframes cwt-dropdown-in {
+@keyframes lp-dropdown-in {
     from { opacity: 0; transform: translateY(-4px); }
     to   { opacity: 1; transform: translateY(0); }
 }
 
-.cwt-switcher__item {
+.lp-switcher__item {
     list-style: none;
     margin: 0;
     padding: 0;
 }
 
-.cwt-switcher__link {
+.lp-switcher__link {
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: var(--cwt-padding) calc( var(--cwt-padding) * 1.5 );
-    color: var(--cwt-text);
+    padding: var(--lp-padding) calc( var(--lp-padding) * 1.5 );
+    color: var(--lp-text);
     text-decoration: none;
     white-space: nowrap;
     transition: background 0.1s;
 }
 
-.cwt-switcher__link:hover {
-    background: var(--cwt-hover);
-    color: var(--cwt-text);
+.lp-switcher__link:hover {
+    background: var(--lp-hover);
+    color: var(--lp-text);
 }
 
-.cwt-switcher__item--active .cwt-switcher__link {
+.lp-switcher__item--active .lp-switcher__link {
     font-weight: 600;
-    background: var(--cwt-hover);
+    background: var(--lp-hover);
 }
 
 /* ---------- Schaltflächen-Stil ---------- */
-.cwt-switcher--buttons .cwt-switcher__current {
+.lp-switcher--buttons .lp-switcher__current {
     display: none;
 }
 
-.cwt-switcher--buttons .cwt-switcher__list {
+.lp-switcher--buttons .lp-switcher__list {
     display: flex !important;
     position: static;
     flex-direction: row;
@@ -124,76 +124,76 @@
     animation: none;
 }
 
-.cwt-switcher--buttons .cwt-switcher__item {
+.lp-switcher--buttons .lp-switcher__item {
     flex: 0 0 auto;
 }
 
-.cwt-switcher--buttons .cwt-switcher__link {
-    border: 1px solid var(--cwt-border);
-    border-radius: var(--cwt-radius);
-    background: var(--cwt-bg);
-    padding: var(--cwt-padding) calc( var(--cwt-padding) * 1.5 );
+.lp-switcher--buttons .lp-switcher__link {
+    border: 1px solid var(--lp-border);
+    border-radius: var(--lp-radius);
+    background: var(--lp-bg);
+    padding: var(--lp-padding) calc( var(--lp-padding) * 1.5 );
 }
 
-.cwt-switcher--buttons .cwt-switcher__item--active .cwt-switcher__link {
+.lp-switcher--buttons .lp-switcher__item--active .lp-switcher__link {
     border-color: currentColor;
 }
 
 /* ---------- Flaggen & Labels ---------- */
-.cwt-flag {
-    font-size: calc( var(--cwt-font-size) * 1.3 );
+.lp-flag {
+    font-size: calc( var(--lp-font-size) * 1.3 );
     line-height: 1;
     display: inline-block;
 }
 
-.cwt-lang-label {
+.lp-lang-label {
     line-height: 1.2;
 }
 
 /* ---------- Fixed-Position ---------- */
-.cwt-switcher--fixed {
+.lp-switcher--fixed {
     position: fixed;
     z-index: 100000;
 }
 
-.cwt-switcher--top-left     { top: 16px;    left: 16px; }
-.cwt-switcher--top-right    { top: 16px;    right: 16px; }
-.cwt-switcher--bottom-left  { bottom: 16px; left: 16px; }
-.cwt-switcher--bottom-right { bottom: 16px; right: 16px; }
+.lp-switcher--top-left     { top: 16px;    left: 16px; }
+.lp-switcher--top-right    { top: 16px;    right: 16px; }
+.lp-switcher--bottom-left  { bottom: 16px; left: 16px; }
+.lp-switcher--bottom-right { bottom: 16px; right: 16px; }
 
 /* Bei fixed-Position Dropdown nach oben öffnen wenn Platz fehlt */
-.cwt-switcher--bottom-left  .cwt-switcher__list,
-.cwt-switcher--bottom-right .cwt-switcher__list {
+.lp-switcher--bottom-left  .lp-switcher__list,
+.lp-switcher--bottom-right .lp-switcher__list {
     top: auto;
     bottom: calc(100% + 2px);
 }
 
-.cwt-switcher--bottom-right .cwt-switcher__list,
-.cwt-switcher--top-right    .cwt-switcher__list {
+.lp-switcher--bottom-right .lp-switcher__list,
+.lp-switcher--top-right    .lp-switcher__list {
     left: auto;
     right: 0;
 }
 
 /* ---------- Inline (Shortcode / Widget) ---------- */
-.cwt-switcher--inline {
+.lp-switcher--inline {
     display: inline-block;
     vertical-align: middle;
 }
 
 /* ---------- Responsive ---------- */
 @media (max-width: 600px) {
-    .cwt-switcher {
-        font-size: calc( var(--cwt-font-size) * 0.9 );
+    .lp-switcher {
+        font-size: calc( var(--lp-font-size) * 0.9 );
     }
 
-    .cwt-switcher--fixed {
+    .lp-switcher--fixed {
         bottom: 12px !important;
         right:  12px !important;
         top:  auto  !important;
         left: auto  !important;
     }
 
-    .cwt-switcher--fixed .cwt-switcher__list {
+    .lp-switcher--fixed .lp-switcher__list {
         top:    auto;
         bottom: calc(100% + 2px);
         left:   auto;
@@ -202,25 +202,25 @@
 }
 
 /* ---------- Zugänglichkeit: Focus-Ring ---------- */
-.cwt-switcher__link:focus-visible,
-.cwt-switcher__current:focus-visible {
+.lp-switcher__link:focus-visible,
+.lp-switcher__current:focus-visible {
     outline: 2px solid #0073aa;
     outline-offset: 1px;
 }
 
 /* ---------- Lade-Indikator (bei AJAX-Sprachenwechsel) ---------- */
-.cwt-switcher--loading .cwt-switcher__current::after {
+.lp-switcher--loading .lp-switcher__current::after {
     content: '';
     display: inline-block;
     width: 10px;
     height: 10px;
-    border: 2px solid var(--cwt-border);
-    border-top-color: var(--cwt-text);
+    border: 2px solid var(--lp-border);
+    border-top-color: var(--lp-text);
     border-radius: 50%;
-    animation: cwt-spin 0.6s linear infinite;
+    animation: lp-spin 0.6s linear infinite;
     margin-left: 6px;
 }
 
-@keyframes cwt-spin {
+@keyframes lp-spin {
     to { transform: rotate(360deg); }
 }

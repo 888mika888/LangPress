@@ -4,19 +4,19 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Sprachumschalter: Shortcode, Widget, Frontend-HTML.
  */
-class CWT_Language_Switcher {
+class LP_Language_Switcher {
 
 	private static ?self $instance = null;
 
 	private function __construct() {
-		add_shortcode( 'custom_language_switcher', [ $this, 'render_shortcode' ] );
+		add_shortcode( 'langpress_switcher', [ $this, 'render_shortcode' ] );
 		add_action( 'wp_enqueue_scripts', [ $this, 'enqueue_assets' ] );
 		add_action( 'wp_enqueue_scripts', [ $this, 'enqueue_translate_mode' ] );
 		add_action( 'wp_footer', [ $this, 'maybe_render_fixed' ] );
 
 		// AJAX: Sprachenwechsel ohne Seiten-Reload
-		add_action( 'wp_ajax_nopriv_cwt_switch_lang', [ $this, 'ajax_switch_lang' ] );
-		add_action( 'wp_ajax_cwt_switch_lang',        [ $this, 'ajax_switch_lang' ] );
+		add_action( 'wp_ajax_nopriv_lp_switch_lang', [ $this, 'ajax_switch_lang' ] );
+		add_action( 'wp_ajax_lp_switch_lang',        [ $this, 'ajax_switch_lang' ] );
 
 		// Widget registrieren
 		add_action( 'widgets_init', [ $this, 'register_widget' ] );
@@ -34,7 +34,7 @@ class CWT_Language_Switcher {
 	// -------------------------------------------------------------------------
 
 	public function enqueue_assets(): void {
-		$fixed = (bool) get_option( 'cwt_position_fixed', false );
+		$fixed = (bool) get_option( 'lp_position_fixed', false );
 
 		// Fixed-Switcher: Assets auf ALLEN Seiten laden.
 		// Seiten-Filter gilt nur für den inline/shortcode Modus.
@@ -43,25 +43,25 @@ class CWT_Language_Switcher {
 		}
 
 		wp_enqueue_style(
-			'cwt-public',
-			CWT_PLUGIN_URL . 'public/public.css',
+			'lp-public',
+			LP_PLUGIN_URL . 'public/public.css',
 			[],
-			CWT_VERSION
+			LP_VERSION
 		);
 
 		wp_enqueue_script(
-			'cwt-public',
-			CWT_PLUGIN_URL . 'public/public.js',
+			'lp-public',
+			LP_PLUGIN_URL . 'public/public.js',
 			[],
-			CWT_VERSION,
+			LP_VERSION,
 			true
 		);
 
-		wp_localize_script( 'cwt-public', 'CWT', [
+		wp_localize_script( 'lp-public', 'LP', [
 			'ajaxUrl'     => admin_url( 'admin-ajax.php' ),
-			'nonce'       => wp_create_nonce( 'cwt_switch_lang' ),
-			'currentLang' => CWT_Translator::instance()->get_current_language(),
-			'defaultLang' => get_option( 'cwt_default_language', 'de' ),
+			'nonce'       => wp_create_nonce( 'lp_switch_lang' ),
+			'currentLang' => LP_Translator::instance()->get_current_language(),
+			'defaultLang' => get_option( 'lp_default_language', 'de' ),
 		] );
 	}
 
@@ -76,35 +76,35 @@ class CWT_Language_Switcher {
 
 		// Full editor mode has its own sidebar — don't load the floating quick-mode too
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		if ( isset( $_GET['cwt_translation_editor'] ) && $_GET['cwt_translation_editor'] === '1' ) {
+		if ( isset( $_GET['lp_translation_editor'] ) && $_GET['lp_translation_editor'] === '1' ) {
 			return;
 		}
 
 		// Public-Assets sicherstellen (falls Switcher auf dieser Seite deaktiviert)
-		wp_enqueue_style( 'cwt-public', CWT_PLUGIN_URL . 'public/public.css', [], CWT_VERSION );
-		wp_enqueue_script( 'cwt-public', CWT_PLUGIN_URL . 'public/public.js', [], CWT_VERSION, true );
+		wp_enqueue_style( 'lp-public', LP_PLUGIN_URL . 'public/public.css', [], LP_VERSION );
+		wp_enqueue_script( 'lp-public', LP_PLUGIN_URL . 'public/public.js', [], LP_VERSION, true );
 
 		wp_enqueue_style(
-			'cwt-translate-mode',
-			CWT_PLUGIN_URL . 'public/translate-mode.css',
-			[ 'cwt-public' ],
-			CWT_VERSION
+			'lp-translate-mode',
+			LP_PLUGIN_URL . 'public/translate-mode.css',
+			[ 'lp-public' ],
+			LP_VERSION
 		);
 
 		wp_enqueue_script(
-			'cwt-translate-mode',
-			CWT_PLUGIN_URL . 'public/translate-mode.js',
+			'lp-translate-mode',
+			LP_PLUGIN_URL . 'public/translate-mode.js',
 			[],
-			CWT_VERSION,
+			LP_VERSION,
 			true
 		);
 
-		wp_localize_script( 'cwt-translate-mode', 'CWT_Translate', [
+		wp_localize_script( 'lp-translate-mode', 'LP_Translate', [
 			'ajaxUrl'     => admin_url( 'admin-ajax.php' ),
-			'nonce'       => wp_create_nonce( 'cwt_admin_nonce' ),
-			'currentLang' => CWT_Translator::instance()->get_current_language(),
-			'defaultLang' => get_option( 'cwt_default_language', 'de' ),
-			'activeLangs' => get_option( 'cwt_active_languages', [ 'de', 'en', 'uk' ] ),
+			'nonce'       => wp_create_nonce( 'lp_admin_nonce' ),
+			'currentLang' => LP_Translator::instance()->get_current_language(),
+			'defaultLang' => get_option( 'lp_default_language', 'de' ),
+			'activeLangs' => get_option( 'lp_active_languages', [ 'de', 'en', 'uk' ] ),
 		] );
 	}
 
@@ -113,13 +113,13 @@ class CWT_Language_Switcher {
 	// -------------------------------------------------------------------------
 
 	private function should_show_on_current_page(): bool {
-		$display_mode = get_option( 'cwt_switcher_display', 'all' );
+		$display_mode = get_option( 'lp_switcher_display', 'all' );
 
 		if ( $display_mode === 'all' ) {
 			return true;
 		}
 
-		$page_ids = (array) get_option( 'cwt_switcher_pages', [] );
+		$page_ids = (array) get_option( 'lp_switcher_pages', [] );
 
 		if ( $display_mode === 'specific' ) {
 			return is_page( $page_ids ) || is_singular() && in_array( get_the_ID(), $page_ids, true );
@@ -142,40 +142,40 @@ class CWT_Language_Switcher {
 	 * @param bool $shortcode_context  true wenn aus Shortcode aufgerufen
 	 */
 	public function render( bool $shortcode_context = false ): string {
-		$active_langs  = (array) get_option( 'cwt_active_languages', [ 'de', 'en', 'uk' ] );
-		$current_lang  = CWT_Translator::instance()->get_current_language();
-		$style         = get_option( 'cwt_switcher_style', 'dropdown' );
-		$display_mode  = get_option( 'cwt_display_mode', 'text' );
-		$all_languages = CWT_Translator::available_languages();
-		$position      = get_option( 'cwt_switcher_position', 'bottom-right' );
-		$fixed         = (bool) get_option( 'cwt_position_fixed', false );
+		$active_langs  = (array) get_option( 'lp_active_languages', [ 'de', 'en', 'uk' ] );
+		$current_lang  = LP_Translator::instance()->get_current_language();
+		$style         = get_option( 'lp_switcher_style', 'dropdown' );
+		$display_mode  = get_option( 'lp_display_mode', 'text' );
+		$all_languages = LP_Translator::available_languages();
+		$position      = get_option( 'lp_switcher_position', 'bottom-right' );
+		$fixed         = (bool) get_option( 'lp_position_fixed', false );
 
 		// CSS-Custom-Properties für Styling
 		$custom_css = $this->build_inline_css();
 
-		$wrapper_class = 'cwt-switcher cwt-switcher--' . esc_attr( $style );
+		$wrapper_class = 'lp-switcher lp-switcher--' . esc_attr( $style );
 		if ( $shortcode_context ) {
-			$wrapper_class .= ' cwt-switcher--inline';
+			$wrapper_class .= ' lp-switcher--inline';
 		} elseif ( $fixed ) {
-			$wrapper_class .= ' cwt-switcher--fixed cwt-switcher--' . esc_attr( $position );
+			$wrapper_class .= ' lp-switcher--fixed lp-switcher--' . esc_attr( $position );
 		}
 
 		$html  = '<div class="' . esc_attr( $wrapper_class ) . '" style="' . esc_attr( $custom_css ) . '">';
-		$html .= '<span class="cwt-switcher__current">';
+		$html .= '<span class="lp-switcher__current">';
 		$html .= $this->render_lang_label( $current_lang, $display_mode, $all_languages );
-		$html .= '<span class="cwt-switcher__arrow" aria-hidden="true">&#9660;</span>';
+		$html .= '<span class="lp-switcher__arrow" aria-hidden="true">&#9660;</span>';
 		$html .= '</span>';
-		$html .= '<ul class="cwt-switcher__list" role="listbox" aria-label="' . esc_attr__( 'Sprache wählen', 'custom-website-translator' ) . '">';
+		$html .= '<ul class="lp-switcher__list" role="listbox" aria-label="' . esc_attr__( 'Sprache wählen', 'langpress' ) . '">';
 
 		foreach ( $active_langs as $lang_code ) {
 			if ( ! isset( $all_languages[ $lang_code ] ) ) {
 				continue;
 			}
 			$is_active = ( $lang_code === $current_lang );
-			$html .= '<li class="cwt-switcher__item' . ( $is_active ? ' cwt-switcher__item--active' : '' ) . '"'
+			$html .= '<li class="lp-switcher__item' . ( $is_active ? ' lp-switcher__item--active' : '' ) . '"'
 				   . ' role="option" aria-selected="' . ( $is_active ? 'true' : 'false' ) . '">';
 			$html .= '<a href="' . esc_url( $this->get_lang_url( $lang_code ) ) . '"'
-				   . ' class="cwt-switcher__link"'
+				   . ' class="lp-switcher__link"'
 				   . ' data-lang="' . esc_attr( $lang_code ) . '">';
 			$html .= $this->render_lang_label( $lang_code, $display_mode, $all_languages );
 			$html .= '</a>';
@@ -204,27 +204,27 @@ class CWT_Language_Switcher {
 		$out  = '';
 
 		if ( $mode === 'flag' || $mode === 'both' ) {
-			$out .= '<span class="cwt-flag" aria-hidden="true">' . esc_html( $lang['flag'] ) . '</span>';
+			$out .= '<span class="lp-flag" aria-hidden="true">' . esc_html( $lang['flag'] ) . '</span>';
 		}
 
 		if ( $mode === 'text' || $mode === 'both' ) {
-			$out .= '<span class="cwt-lang-label">' . esc_html( $lang['native'] ) . '</span>';
+			$out .= '<span class="lp-lang-label">' . esc_html( $lang['native'] ) . '</span>';
 		}
 
 		return $out;
 	}
 
 	/**
-	 * URL für Sprachenwechsel erzeugen (aktueller Request + cwt_lang-Parameter).
+	 * URL für Sprachenwechsel erzeugen (aktueller Request + lp_lang-Parameter).
 	 */
 	private function get_lang_url( string $lang_code ): string {
 		$current_url = ( is_ssl() ? 'https://' : 'http://' )
 					 . sanitize_text_field( wp_unslash( $_SERVER['HTTP_HOST'] ?? '' ) )
 					 . sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ?? '/' ) );
 
-		// Bestehenden cwt_lang-Parameter entfernen, neuen setzen
-		$url = remove_query_arg( 'cwt_lang', $current_url );
-		return add_query_arg( 'cwt_lang', $lang_code, $url );
+		// Bestehenden lp_lang-Parameter entfernen, neuen setzen
+		$url = remove_query_arg( 'lp_lang', $current_url );
+		return add_query_arg( 'lp_lang', $lang_code, $url );
 	}
 
 	/**
@@ -232,13 +232,13 @@ class CWT_Language_Switcher {
 	 */
 	private function build_inline_css(): string {
 		$props = [
-			'--cwt-bg'            => get_option( 'cwt_bg_color', '#ffffff' ),
-			'--cwt-text'          => get_option( 'cwt_text_color', '#333333' ),
-			'--cwt-border'        => get_option( 'cwt_border_color', '#cccccc' ),
-			'--cwt-hover'         => get_option( 'cwt_hover_color', '#f0f0f0' ),
-			'--cwt-radius'        => get_option( 'cwt_border_radius', '4' ) . 'px',
-			'--cwt-font-size'     => get_option( 'cwt_font_size', '14' ) . 'px',
-			'--cwt-padding'       => get_option( 'cwt_padding', '8' ) . 'px',
+			'--lp-bg'            => get_option( 'lp_bg_color', '#ffffff' ),
+			'--lp-text'          => get_option( 'lp_text_color', '#333333' ),
+			'--lp-border'        => get_option( 'lp_border_color', '#cccccc' ),
+			'--lp-hover'         => get_option( 'lp_hover_color', '#f0f0f0' ),
+			'--lp-radius'        => get_option( 'lp_border_radius', '4' ) . 'px',
+			'--lp-font-size'     => get_option( 'lp_font_size', '14' ) . 'px',
+			'--lp-padding'       => get_option( 'lp_padding', '8' ) . 'px',
 		];
 
 		$css = '';
@@ -260,8 +260,8 @@ class CWT_Language_Switcher {
 	}
 
 	public function maybe_render_fixed(): void {
-		$fixed    = (bool) get_option( 'cwt_position_fixed', false );
-		$position = get_option( 'cwt_switcher_position', 'bottom-right' );
+		$fixed    = (bool) get_option( 'lp_position_fixed', false );
+		$position = get_option( 'lp_switcher_position', 'bottom-right' );
 
 		if ( ! $fixed ) {
 			return;
@@ -277,16 +277,16 @@ class CWT_Language_Switcher {
 	// -------------------------------------------------------------------------
 
 	public function ajax_switch_lang(): void {
-		check_ajax_referer( 'cwt_switch_lang', 'nonce' );
+		check_ajax_referer( 'lp_switch_lang', 'nonce' );
 
 		$lang   = isset( $_POST['lang'] ) ? sanitize_key( wp_unslash( $_POST['lang'] ) ) : '';
-		$active = (array) get_option( 'cwt_active_languages', [ 'de', 'en', 'uk' ] );
+		$active = (array) get_option( 'lp_active_languages', [ 'de', 'en', 'uk' ] );
 
 		if ( ! in_array( $lang, $active, true ) ) {
 			wp_send_json_error( [ 'message' => 'Invalid language.' ] );
 		}
 
-		CWT_Translator::instance()->set_language_cookie( $lang );
+		LP_Translator::instance()->set_language_cookie( $lang );
 		wp_send_json_success( [ 'lang' => $lang ] );
 	}
 
@@ -295,20 +295,20 @@ class CWT_Language_Switcher {
 	// -------------------------------------------------------------------------
 
 	public function register_widget(): void {
-		register_widget( 'CWT_Language_Widget' );
+		register_widget( 'LP_Language_Widget' );
 	}
 }
 
 /**
  * Einfaches WordPress-Widget für den Sprachumschalter.
  */
-class CWT_Language_Widget extends WP_Widget {
+class LP_Language_Widget extends WP_Widget {
 
 	public function __construct() {
 		parent::__construct(
-			'cwt_language_widget',
-			__( 'Sprachumschalter', 'custom-website-translator' ),
-			[ 'description' => __( 'Zeigt den Sprachumschalter an.', 'custom-website-translator' ) ]
+			'lp_language_widget',
+			__( 'Sprachumschalter', 'langpress' ),
+			[ 'description' => __( 'Zeigt den Sprachumschalter an.', 'langpress' ) ]
 		);
 	}
 
@@ -320,7 +320,7 @@ class CWT_Language_Widget extends WP_Widget {
 			echo $args['before_title'] . esc_html( $instance['title'] ) . $args['after_title'];
 		}
 		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-		echo CWT_Language_Switcher::instance()->render( true );
+		echo LP_Language_Switcher::instance()->render( true );
 		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 		echo $args['after_widget'];
 	}
@@ -328,7 +328,7 @@ class CWT_Language_Widget extends WP_Widget {
 	public function form( $instance ): void {
 		$title = esc_attr( $instance['title'] ?? '' );
 		echo '<p><label for="' . esc_attr( $this->get_field_id( 'title' ) ) . '">'
-		   . esc_html__( 'Titel:', 'custom-website-translator' )
+		   . esc_html__( 'Titel:', 'langpress' )
 		   . '</label>'
 		   . '<input class="widefat" id="' . esc_attr( $this->get_field_id( 'title' ) ) . '"'
 		   . ' name="' . esc_attr( $this->get_field_name( 'title' ) ) . '"'

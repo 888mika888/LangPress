@@ -5,7 +5,7 @@ defined( 'ABSPATH' ) || exit;
  * Handles language detection, the in-memory translation cache, and
  * the DOM-based text replacement that runs on every page request.
  */
-class CWT_Translator {
+class LP_Translator {
 
 	private static ?self $instance = null;
 
@@ -29,23 +29,23 @@ class CWT_Translator {
 
 	/**
 	 * Determine the active language.
-	 * Priority: URL param ?cwt_lang → cookie → site default.
+	 * Priority: URL param ?lp_lang → cookie → site default.
 	 */
 	public function detect_language(): string {
-		$active  = get_option( 'cwt_active_languages', [ 'de', 'en', 'uk' ] );
-		$default = get_option( 'cwt_default_language', 'de' );
+		$active  = get_option( 'lp_active_languages', [ 'de', 'en', 'uk' ] );
+		$default = get_option( 'lp_default_language', 'de' );
 
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		if ( isset( $_GET['cwt_lang'] ) ) {
-			$lang = sanitize_key( wp_unslash( $_GET['cwt_lang'] ) );
+		if ( isset( $_GET['lp_lang'] ) ) {
+			$lang = sanitize_key( wp_unslash( $_GET['lp_lang'] ) );
 			if ( in_array( $lang, $active, true ) ) {
 				$this->set_language_cookie( $lang );
 				return $lang;
 			}
 		}
 
-		if ( isset( $_COOKIE['cwt_language'] ) ) {
-			$lang = sanitize_key( wp_unslash( $_COOKIE['cwt_language'] ) );
+		if ( isset( $_COOKIE['lp_language'] ) ) {
+			$lang = sanitize_key( wp_unslash( $_COOKIE['lp_language'] ) );
 			if ( in_array( $lang, $active, true ) ) {
 				return $lang;
 			}
@@ -58,7 +58,7 @@ class CWT_Translator {
 		if ( headers_sent() ) {
 			return;
 		}
-		setcookie( 'cwt_language', $lang, [
+		setcookie( 'lp_language', $lang, [
 			'expires'  => time() + ( 30 * DAY_IN_SECONDS ),
 			'path'     => COOKIEPATH ?: '/',
 			'domain'   => COOKIE_DOMAIN ?: '',
@@ -73,7 +73,7 @@ class CWT_Translator {
 	}
 
 	public function is_default_language(): bool {
-		return $this->current_language === get_option( 'cwt_default_language', 'de' );
+		return $this->current_language === get_option( 'lp_default_language', 'de' );
 	}
 
 	/**
@@ -87,7 +87,7 @@ class CWT_Translator {
 
 		$this->load_cache();
 
-		$hash = CWT_Database::instance()->hash( trim( $text ) );
+		$hash = LP_Database::instance()->hash( trim( $text ) );
 		$lang = $this->current_language;
 
 		if ( ! empty( $this->cache[ $lang ][ $hash ] ) ) {
@@ -179,9 +179,9 @@ class CWT_Translator {
 			return;
 		}
 
-		$db      = CWT_Database::instance();
-		$active  = get_option( 'cwt_active_languages', [ 'de', 'en', 'uk' ] );
-		$default = get_option( 'cwt_default_language', 'de' );
+		$db      = LP_Database::instance();
+		$active  = get_option( 'lp_active_languages', [ 'de', 'en', 'uk' ] );
+		$default = get_option( 'lp_default_language', 'de' );
 
 		foreach ( $active as $lang ) {
 			if ( $lang !== $default ) {
@@ -196,14 +196,14 @@ class CWT_Translator {
 	 */
 	public function invalidate_cache( string $lang = '' ): void {
 		if ( $lang === '' ) {
-			$active = get_option( 'cwt_active_languages', [ 'de', 'en', 'uk' ] );
+			$active = get_option( 'lp_active_languages', [ 'de', 'en', 'uk' ] );
 			foreach ( $active as $l ) {
-				wp_cache_delete( 'cwt_translations_' . $l, 'cwt' );
+				wp_cache_delete( 'lp_translations_' . $l, 'cwt' );
 			}
 			$this->cache        = [];
 			$this->cache_loaded = false;
 		} else {
-			wp_cache_delete( 'cwt_translations_' . $lang, 'cwt' );
+			wp_cache_delete( 'lp_translations_' . $lang, 'cwt' );
 			unset( $this->cache[ $lang ] );
 			if ( $lang === $this->current_language ) {
 				$this->cache_loaded = false;
@@ -221,13 +221,13 @@ class CWT_Translator {
 		}
 
 		$lang      = $this->current_language;
-		$cache_key = 'cwt_translations_' . $lang;
+		$cache_key = 'lp_translations_' . $lang;
 		$cached    = wp_cache_get( $cache_key, 'cwt' );
 
 		if ( $cached !== false ) {
 			$this->cache[ $lang ] = $cached;
 		} else {
-			$this->cache[ $lang ] = CWT_Database::instance()->get_translations_for_language( $lang );
+			$this->cache[ $lang ] = LP_Database::instance()->get_translations_for_language( $lang );
 			wp_cache_set( $cache_key, $this->cache[ $lang ], 'cwt', 300 );
 		}
 

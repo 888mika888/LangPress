@@ -15,8 +15,6 @@ A WordPress plugin for multilingual websites with a visual, manual translation e
 
 LangPress lets you translate a WordPress site into multiple languages by clicking directly on text in the live frontend. Translations are stored in a custom database table and applied dynamically at request time — no extra pages or posts are ever created.
 
-When you click **Translate Page** in the admin bar, a sidebar opens alongside your live page. You hover over any text, click the pencil icon, type your translation, and save. That's the whole workflow.
-
 **Ships with:** German (default), English, Ukrainian  
 **Also available:** French, Spanish, Italian, Turkish, Polish, Russian, Arabic
 
@@ -25,12 +23,14 @@ When you click **Translate Page** in the admin bar, a sidebar opens alongside yo
 ## Features
 
 - **Visual editor** — translate text directly on the live page without touching the WordPress editor
+- **Two translation modes** — full sidebar editor (all languages at once) or floating quick-translate (one language at a time)
 - **Human translations only** — no auto-translation; every string is written by a human, ensuring accuracy and tone
 - **No duplicate pages** — translations are swapped in via PHP output buffering at runtime
 - **Manual control** — you decide what gets translated; ignored strings are never suggested again
 - **Language switcher** — fixed-position dropdown or buttons that appear on every page
 - **Auto-activation** — saving a translation makes it live immediately
 - **Auto-migration** — database schema updates run automatically on version change
+- **English admin UI** — admin panels switch to English when WordPress is set to English; German otherwise
 - **Secure** — nonces, capability checks, prepared statements, sanitized inputs throughout
 
 ---
@@ -79,7 +79,7 @@ There are two ways to translate as an admin. Both are only visible to administra
 
 ### Translate Page (full editor)
 
-Click **Translate Page** in the WordPress admin bar at the top. This opens a sidebar alongside your live page in its original language.
+Click **Translate Page** in the WordPress admin bar at the top. This opens a sidebar alongside your live page shown in its original language.
 
 ```
 ┌─────────────────────┬──────────────────────────────────────────┐
@@ -108,13 +108,13 @@ Click **Translate Page** in the WordPress admin bar at the top. This opens a sid
 
 ### Quick Translate (floating button)
 
-A **✎ Seite übersetzen** button appears in the bottom-left corner of every frontend page when you are logged in as an admin. Click it to open a floating sidebar.
+A floating **✎ Translate** button appears in the bottom-left corner of every frontend page when you are logged in as an admin. Click it to open a floating sidebar.
 
 - Select the target language from the dropdown
-- Click any pencil icon on the page → type the translation → **Speichern**
+- Click any pencil icon on the page → type the translation → **Save**
 - Translates one language at a time
 - The mode stays active as you navigate between pages (stored in sessionStorage)
-- Click **✎ Modus beenden** or the × button to close it
+- Click the toggle button or the × to close it
 
 ---
 
@@ -146,7 +146,7 @@ When a visitor clicks a language, the page reloads with `?lp_lang=en` (or `uk`) 
 | **Import / Export** | Back up and restore translations as JSON |
 | **Debug / Status** | Check system info, clear cache, reinstall DB tables |
 
-> **Note:** The admin panels are always displayed in German. The plugin does not ship with translation files for the WordPress admin UI. This is intentional — it was built for a specific German-language project. If you need the admin UI in another language, you can create your own `.po`/`.mo` files in the `languages/` folder using the text domain `langpress`.
+The admin UI is in **German by default**. When WordPress is set to English (US or UK), the admin UI switches to English automatically. To add support for another language, create `.po`/`.mo` files in the `languages/` folder using the text domain `langpress`.
 
 ---
 
@@ -165,6 +165,14 @@ When a visitor loads a page in a non-default language:
 
 ---
 
+## Known Limitations
+
+- **Page caching plugins** (WP Rocket, W3 Total Cache full-page cache) — cached pages bypass the output buffer, so translations are not applied. You would need to configure your cache plugin to serve separate cached versions per language cookie or disable full-page caching.
+- **JavaScript-rendered content** — text injected by JavaScript after page load (React, Vue, Elementor widgets, etc.) is not captured by the PHP output buffer and will not be translated.
+- **No hreflang tags** — the plugin does not add `hreflang` meta tags. If SEO for multiple languages matters, add these manually or via a separate SEO plugin.
+
+---
+
 ## Developer Reference
 
 ### AJAX Endpoints
@@ -174,7 +182,7 @@ All endpoints POST to `wp-admin/admin-ajax.php`. Admin endpoints require a valid
 | Action | Auth | Key parameters |
 |---|---|---|
 | `lp_get_translation` | admin | `original`, `post_id` |
-| `lp_save_translation` | admin | `original`, `en`, `uk`, `post_id` |
+| `lp_save_translation` | admin | `original`, `lang`, `translated`, `status`, `post_id` |
 | `lp_get_page_translations` | admin | `language_code`, `post_id` |
 | `lp_update_status` | admin | `id`, `status` |
 | `lp_delete_translation` | admin | `hash` |
@@ -192,7 +200,7 @@ All endpoints POST to `wp-admin/admin-ajax.php`. Admin endpoints require a valid
 | `id` | BIGINT UNSIGNED | Primary key |
 | `post_id` | BIGINT UNSIGNED NULL | Optional — links translation to a specific post/page |
 | `original_text` | LONGTEXT | The source text as found on the page |
-| `normalized_text` | LONGTEXT | Trimmed, whitespace-collapsed version for matching |
+| `normalized_text` | LONGTEXT | Whitespace-collapsed version used for consistent matching |
 | `text_hash` | VARCHAR(64) | SHA-256 of the normalized text — used as the lookup key |
 | `language_code` | VARCHAR(10) | e.g. `en`, `uk`, `fr` |
 | `translated_text` | LONGTEXT | The translation |
@@ -221,7 +229,9 @@ langpress/
 │   └── translation-editor.{css,js}      # Full visual editor (pencil icons, sidebar)
 ├── admin/
 │   └── admin.{css,js}                   # WordPress admin panel UI
-└── languages/                           # .po / .mo files for plugin UI strings
+└── languages/
+    ├── langpress-en_US.{po,mo}          # English (US) admin UI translations
+    └── langpress-en_GB.{po,mo}          # English (UK) admin UI translations
 ```
 
 ---
@@ -258,8 +268,13 @@ GNU General Public License v2 or later — see [https://www.gnu.org/licenses/gpl
 
 ### 1.2.0
 - Visual Translation Editor: "Translate Page" button in admin bar opens a full sidebar editor
-- Pencil icons on every translatable text block in the editor
-- Save EN + UK translations in a single AJAX call
+- Floating quick-translate sidebar ("Seite übersetzen") for one-language-at-a-time editing
+- Pencil icons on every translatable text block in both editor modes
+- English admin UI: `en_US` and `en_GB` translation files added
+- Fixed: translations being wiped every 24 hours by auto-registration overwriting active rows
+- Fixed: hash mismatch between visual editor saves and PHP translation lookup (whitespace normalization)
+- Fixed: `post_id` column check missing from UPDATE path, causing saves to fail when `post_id` column is not yet in the schema
+- Fixed: pencil icons appearing inside the language switcher in editor mode
 - `post_id` and `normalized_text` database columns added
 - Database schema auto-migrates on version change — no manual deactivate/reactivate needed
 

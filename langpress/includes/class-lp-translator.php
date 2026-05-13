@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 defined( 'ABSPATH' ) || exit;
 
 /**
@@ -8,6 +8,29 @@ defined( 'ABSPATH' ) || exit;
 class LP_Translator {
 
 	private static ?self $instance = null;
+
+	/**
+	 * Block-level elements we attempt to translate as a single combined unit.
+	 * This allows paragraphs containing inline tags like <strong> or <em> to be
+	 * matched against the hash that was saved from the element's full innerText.
+	 */
+	public const BLOCK_TAGS = [
+		'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+		'li', 'blockquote', 'figcaption', 'dt', 'dd', 'td', 'th',
+	];
+
+	/**
+	 * If any of these tags appear inside a block candidate we abandon the combined
+	 * lookup and fall back to per-node translation, to avoid accidentally flattening
+	 * links, buttons, images, or nested block structure.
+	 */
+	private const BLOCK_BAIL_TAGS = [
+		'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+		'ul', 'ol', 'li', 'table', 'thead', 'tbody', 'tr', 'td', 'th',
+		'div', 'section', 'article', 'header', 'footer', 'nav', 'main',
+		'blockquote', 'form', 'fieldset',
+		'a', 'button', 'img', 'input', 'select',
+	];
 
 	/** hash => translated_text, keyed by language code */
 	private array $cache = [];
@@ -141,8 +164,10 @@ class LP_Translator {
 
 	/**
 	 * Recursively walk DOM nodes and replace text node values.
-	 * We copy childNodes to an array first because replacing nodeValue
-	 * while iterating the live NodeList can skip siblings.
+	 * For block-level elements we first attempt a combined lookup so that a
+	 * paragraph containing inline tags like <strong> or <em> is matched against
+	 * the full-sentence hash saved by the visual editor (via JS innerText).
+	 * If no combined translation exists we fall back to per-text-node replacement.
 	 */
 	private function walk_dom( DOMNode $node ): void {
 		if ( $node instanceof DOMElement ) {
@@ -151,6 +176,10 @@ class LP_Translator {
 				return;
 			}
 			if ( $node->getAttribute( 'translate' ) === 'no' ) {
+				return;
+			}
+
+			if ( in_array( $tag, self::BLOCK_TAGS, true ) && $this->try_translate_block( $node ) ) {
 				return;
 			}
 		}
@@ -166,6 +195,85 @@ class LP_Translator {
 		foreach ( iterator_to_array( $node->childNodes ) as $child ) {
 			$this->walk_dom( $child );
 		}
+	}
+
+	/**
+	 * Try to translate a block element as one combined string.
+	 * Returns true and rewrites the element's content if a translation is found.
+	 * Bails (returns false) whenever the subtree contains links, images, buttons,
+	 * or nested block elements — we must not flatten those into plain text.
+	 */
+	private function try_translate_block( DOMElement $el ): bool {
+		if ( $this->subtree_has_bail_tag( $el ) ) {
+			return false;
+		}
+
+		$combined = $this->get_block_text( $el );
+		if ( $combined === '' || mb_strlen( $combined ) < 2 ) {
+			return false;
+		}
+
+		$hash = LP_Database::instance()->hash( $combined );
+		$lang = $this->current_language;
+
+		if ( empty( $this->cache[ $lang ][ $hash ] ) ) {
+			return false;
+		}
+
+		$translated = $this->cache[ $lang ][ $hash ];
+
+		// Replace all children with a single translated text node.
+		// Inline formatting (strong, em, span…) is intentionally flattened —
+		// the translation is a flat string and there is no safe way to re-wrap it.
+		while ( $el->firstChild ) {
+			$el->removeChild( $el->firstChild );
+		}
+		$el->appendChild( $el->ownerDocument->createTextNode( $translated ) );
+
+		return true;
+	}
+
+	/**
+	 * Return true if the element's subtree contains any tag from BLOCK_BAIL_TAGS.
+	 * We copy childNodes to avoid issues with live NodeList mutation.
+	 */
+	public function subtree_has_bail_tag( DOMNode $node ): bool {
+		foreach ( iterator_to_array( $node->childNodes ) as $child ) {
+			if ( ! ( $child instanceof DOMElement ) ) {
+				continue;
+			}
+			if ( in_array( strtolower( $child->nodeName ), self::BLOCK_BAIL_TAGS, true ) ) {
+				return true;
+			}
+			if ( $this->subtree_has_bail_tag( $child ) ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Collect the visible text of an element by recursively descending into
+	 * all children (inline tags included), then normalize whitespace.
+	 * Does NOT apply bail-tag logic — call subtree_has_bail_tag() first.
+	 */
+	public function get_block_text( DOMNode $node ): string {
+		$text = '';
+		foreach ( $node->childNodes as $child ) {
+			if ( $child instanceof DOMText ) {
+				$text .= $child->nodeValue;
+			} elseif ( $child instanceof DOMElement ) {
+				$tag = strtolower( $child->nodeName );
+				if ( in_array( $tag, [ 'script', 'style', 'noscript', 'code', 'pre' ], true ) ) {
+					continue;
+				}
+				if ( $child->getAttribute( 'translate' ) === 'no' ) {
+					continue;
+				}
+				$text .= $this->get_block_text( $child );
+			}
+		}
+		return preg_replace( '/\s+/', ' ', trim( $text ) ) ?? trim( $text );
 	}
 
 	/**
@@ -259,3 +367,4 @@ class LP_Translator {
 		];
 	}
 }
+

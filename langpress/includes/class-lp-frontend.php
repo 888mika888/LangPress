@@ -1,60 +1,26 @@
-﻿<?php
+<?php
 defined( 'ABSPATH' ) || exit;
 
 /**
  * Handles two frontend concerns:
  *   1. Visual translation editor mode (?lp_translation_editor=1)
  *   2. PHP output buffering that swaps text nodes for the active language
+ *
+ * ALL hooks are registered inside the 'wp' action so they are never
+ * active during REST API, AJAX, cron, or XML-RPC requests — those exit
+ * before 'wp' fires, making it impossible for LP to interfere.
  */
 class LP_Frontend {
 
 	private static ?self $instance = null;
 
 	private function __construct() {
-		if ( is_admin() ) {
-			return;
-		}
-		// Block contexts where LP must never touch output:
-		// PUT/PATCH/DELETE = Gutenberg saves, REST mutations.
-		// Known URI patterns = REST API, AJAX, uploads.
-		// wp_doing_ajax() catches admin-ajax.php (WP_ADMIN=true there, so LP_Admin handles it).
-		if ( self::is_excluded_request() ) {
-			return;
-		}
-
-		add_action( 'wp_head',           [ $this, 'inject_hreflang_tags' ] );
-		add_filter( 'language_attributes', [ $this, 'maybe_add_rtl_dir' ] );
-		add_action( 'template_redirect', [ $this, 'maybe_start_editor_mode' ], 0 );
-		add_action( 'template_redirect', [ $this, 'start_output_buffer' ], 1 );
-		add_action( 'template_redirect', [ $this, 'maybe_register_texts' ], 5 );
-	}
-
-	/**
-	 * Returns true for any request that is never a public HTML page.
-	 * Uses only data available at plugins_loaded time (no REST_REQUEST yet).
-	 */
-	private static function is_excluded_request(): bool {
-		if ( wp_doing_ajax() ) return true;
-		if ( wp_doing_cron() ) return true;
-
-		$method = strtoupper( $_SERVER['REQUEST_METHOD'] ?? 'GET' );
-		if ( $method !== 'GET' && $method !== 'HEAD' ) return true;
-
-		$uri = sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ?? '' ) );
-		foreach ( [
-			'/wp-json/',
-			'admin-ajax.php',
-			'async-upload.php',
-			'media-upload.php',
-			'upload.php',
-			'admin-post.php',
-			'wp-cron.php',
-			'xmlrpc.php',
-		] as $pattern ) {
-			if ( str_contains( $uri, $pattern ) ) return true;
-		}
-
-		return false;
+		// Use 'wp' as the registration point, not plugins_loaded/template_redirect.
+		// REST API calls exit during parse_request (before 'wp').
+		// admin-ajax.php exits after its handler (before 'wp').
+		// wp-cron.php exits after its jobs (before 'wp').
+		// So if 'wp' fires we are guaranteed to be on a real frontend HTML page.
+		add_action( 'wp', [ $this, 'register_hooks' ], 1 );
 	}
 
 	public static function instance(): self {
@@ -64,26 +30,60 @@ class LP_Frontend {
 		return self::$instance;
 	}
 
+	/**
+	 * Register all frontend hooks.
+	 * Only called on real frontend page loads — never on REST/AJAX/cron.
+	 */
+	public function register_hooks(): void {
+		// Skip admin-initiated page loads just in case.
+		if ( is_admin() ) {
+			return;
+		}
+
+		// Belt-and-suspenders: by 'wp' time these constants are reliable.
+		if ( defined( 'REST_REQUEST' ) && REST_REQUEST )     return;
+		if ( defined( 'XMLRPC_REQUEST' ) && XMLRPC_REQUEST ) return;
+		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) return;
+		if ( wp_doing_cron() )                               return;
+		if ( wp_doing_ajax() )                               return;
+
+		add_action( 'wp_head',            [ $this, 'inject_hreflang_tags' ] );
+		add_filter( 'language_attributes', [ $this, 'maybe_add_rtl_dir' ] );
+
+		if ( $this->is_editor_mode() ) {
+			// Editor mode: enqueue editor assets, inject sidebar, no output buffer.
+			add_action( 'wp_enqueue_scripts', [ $this, 'enqueue_editor_assets' ] );
+			add_action( 'wp_footer',          [ $this, 'inject_editor_sidebar' ], 9999 );
+			return;
+		}
+
+		$translator = LP_Translator::instance();
+
+		if ( ! $translator->is_default_language() ) {
+			// Non-default language: capture output and translate it.
+			ob_start( [ $this, 'process_output' ] );
+			return;
+		}
+
+		// Default language: scan the rendered HTML for new translatable strings.
+		// Throttled to once per URL per day via a transient.
+		$page_url  = $this->get_current_url();
+		$trans_key = 'lp_scanned_' . md5( $page_url );
+
+		if ( ! get_transient( $trans_key ) ) {
+			ob_start( function ( string $html ) use ( $translator, $page_url, $trans_key ): string {
+				$this->extract_and_register_texts( $html, $translator, $page_url );
+				set_transient( $trans_key, 1, DAY_IN_SECONDS );
+				return $html;
+			} );
+		}
+	}
+
 	private function is_editor_mode(): bool {
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		return isset( $_GET['lp_translation_editor'] )
 			&& $_GET['lp_translation_editor'] === '1'
 			&& current_user_can( 'manage_options' );
-	}
-
-	public function maybe_start_editor_mode(): void {
-		if ( ! self::should_translate_request() ) {
-			return;
-		}
-		if ( ! $this->is_editor_mode() ) {
-			return;
-		}
-
-		add_action( 'wp_enqueue_scripts', [ $this, 'enqueue_editor_assets' ] );
-		add_action( 'wp_footer', [ $this, 'inject_editor_sidebar' ], 9999 );
-
-		// Show the original content in the editor so the admin can see what they're translating.
-		remove_action( 'template_redirect', [ $this, 'start_output_buffer' ], 1 );
 	}
 
 	public function enqueue_editor_assets(): void {
@@ -186,58 +186,12 @@ class LP_Frontend {
 		<?php
 	}
 
-	/**
-	 * Returns true only for normal public frontend GET requests that expect an HTML response.
-	 * Must return false for REST API, AJAX, cron, autosave, XML-RPC, and any non-GET request
-	 * so LangPress never starts output buffering or modifies content during Gutenberg saves,
-	 * media uploads, or other API calls.
-	 */
-	private static function should_translate_request(): bool {
-		if ( defined( 'REST_REQUEST' ) && REST_REQUEST )     return false;
-		if ( defined( 'XMLRPC_REQUEST' ) && XMLRPC_REQUEST ) return false;
-		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) return false;
-		if ( wp_doing_cron() )                               return false;
-		if ( wp_doing_ajax() )                               return false;
-
-		// Only GET requests deliver browseable HTML pages.
-		if ( ( $_SERVER['REQUEST_METHOD'] ?? 'GET' ) !== 'GET' ) return false;
-
-		// Block known non-frontend URI patterns.
-		$uri = isset( $_SERVER['REQUEST_URI'] )
-			? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) )
-			: '';
-
-		$blocked_patterns = [
-			'/wp-json/',
-			'admin-ajax.php',
-			'async-upload.php',
-			'media-upload.php',
-			'upload.php',
-			'admin-post.php',
-		];
-		foreach ( $blocked_patterns as $pattern ) {
-			if ( str_contains( $uri, $pattern ) ) return false;
-		}
-
-		return true;
-	}
-
-	public function start_output_buffer(): void {
-		if ( ! self::should_translate_request() ) {
-			return;
-		}
-		if ( LP_Translator::instance()->is_default_language() ) {
-			return;
-		}
-		ob_start( [ $this, 'process_output' ] );
-	}
-
 	public function process_output( string $html ): string {
 		if ( trim( $html ) === '' ) {
 			return $html;
 		}
 
-		// Never modify JSON, XML, or non-HTML responses even if the buffer fired.
+		// Never translate JSON, XML, or non-HTML responses.
 		$first = ltrim( $html );
 		if ( $first !== '' && ( $first[0] === '{' || $first[0] === '[' ) ) {
 			return $html;
@@ -249,54 +203,21 @@ class LP_Frontend {
 			return $html;
 		}
 
-		if ( $this->is_non_html_request() ) {
-			return $html;
-		}
-
-		return LP_Translator::instance()->translate_html( $html );
-	}
-
-	private function is_non_html_request(): bool {
+		// One final check now that all WP constants are defined.
 		if ( ( defined( 'REST_REQUEST' ) && REST_REQUEST )
 			|| ( defined( 'DOING_AJAX' ) && DOING_AJAX )
 			|| is_feed() ) {
-			return true;
+			return $html;
 		}
+
+		// Verify Content-Type header hasn't been changed to non-HTML.
 		foreach ( headers_list() as $header ) {
 			if ( stripos( $header, 'Content-Type:' ) === 0 && stripos( $header, 'text/html' ) === false ) {
-				return true;
+				return $html;
 			}
 		}
-		return false;
-	}
 
-	/**
-	 * On the default language, scan the rendered HTML for translatable strings
-	 * and register any new ones as "pending" in the database.
-	 * Throttled to once per URL per day via a transient.
-	 */
-	public function maybe_register_texts(): void {
-		if ( ! self::should_translate_request() ) {
-			return;
-		}
-		if ( ! LP_Translator::instance()->is_default_language() ) {
-			return;
-		}
-
-		$page_url  = $this->get_current_url();
-		$trans_key = 'lp_scanned_' . md5( $page_url );
-
-		if ( get_transient( $trans_key ) ) {
-			return;
-		}
-
-		$translator = LP_Translator::instance();
-
-		ob_start( function ( string $html ) use ( $translator, $page_url, $trans_key ): string {
-			$this->extract_and_register_texts( $html, $translator, $page_url );
-			set_transient( $trans_key, 1, DAY_IN_SECONDS );
-			return $html;
-		} );
+		return LP_Translator::instance()->translate_html( $html );
 	}
 
 	private function extract_and_register_texts( string $html, LP_Translator $translator, string $page_url ): void {
@@ -328,9 +249,6 @@ class LP_Frontend {
 				return;
 			}
 
-			// Mirror the block-level strategy in LP_Translator::walk_dom():
-			// collect the full combined text for block elements so the registered hash
-			// matches what the visual editor saves (JS innerText of the whole element).
 			if ( in_array( $tag, LP_Translator::BLOCK_TAGS, true ) ) {
 				$translator = LP_Translator::instance();
 				if ( ! $translator->subtree_has_bail_tag( $node ) ) {
@@ -372,7 +290,6 @@ class LP_Frontend {
 			echo '<link rel="alternate" hreflang="' . esc_attr( $lang_code ) . '" href="' . esc_url( $href ) . '">' . "\n";
 		}
 
-		// x-default points to the default-language URL with no lang override.
 		echo '<link rel="alternate" hreflang="x-default" href="' . esc_url( $base_url ) . '">' . "\n";
 	}
 
@@ -384,8 +301,6 @@ class LP_Frontend {
 			return $output;
 		}
 
-		// Swap the lang attribute to match the active language so screen
-		// readers and SEO tools see the correct language code (e.g. "ar" not "de").
 		$output = preg_replace( '/lang="[^"]*"/', 'lang="' . esc_attr( $lang ) . '"', $output ) ?? $output;
 
 		if ( LP_Translator::is_rtl_language( $lang ) ) {
@@ -405,4 +320,3 @@ class LP_Frontend {
 			 . sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ?? '/' ) );
 	}
 }
-

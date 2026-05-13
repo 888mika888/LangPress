@@ -2,20 +2,15 @@
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Handles three frontend concerns:
- *   1. Admin-bar "Translate Page" button
- *   2. Visual translation editor mode (?lp_translation_editor=1)
- *   3. PHP output buffering that swaps text nodes for the active language
+ * Handles two frontend concerns:
+ *   1. Visual translation editor mode (?lp_translation_editor=1)
+ *   2. PHP output buffering that swaps text nodes for the active language
  */
 class LP_Frontend {
 
 	private static ?self $instance = null;
 
 	private function __construct() {
-		// admin_bar_menu fires on both frontend and admin — register it
-		// before the is_admin() guard so the button always appears in the frontend bar.
-		add_action( 'admin_bar_menu', [ $this, 'add_admin_bar_button' ], 100 );
-
 		if ( is_admin() ) {
 			return;
 		}
@@ -32,28 +27,6 @@ class LP_Frontend {
 			self::$instance = new self();
 		}
 		return self::$instance;
-	}
-
-	public function add_admin_bar_button( WP_Admin_Bar $wp_admin_bar ): void {
-		if ( ! current_user_can( 'manage_options' ) || is_admin() ) {
-			return;
-		}
-
-		$current_url = ( is_ssl() ? 'https://' : 'http://' )
-			. sanitize_text_field( wp_unslash( $_SERVER['HTTP_HOST'] ?? '' ) )
-			. sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ?? '/' ) );
-
-		$editor_url = add_query_arg(
-			'lp_translation_editor', '1',
-			remove_query_arg( 'lp_translation_editor', $current_url )
-		);
-
-		$wp_admin_bar->add_node( [
-			'id'    => 'lp-translate-page',
-			'title' => '<span class="ab-icon dashicons dashicons-translation"></span> Translate Page',
-			'href'  => esc_url( $editor_url ),
-			'meta'  => [ 'class' => 'lp-translate-page-btn', 'title' => 'Open the visual translation editor' ],
-		] );
 	}
 
 	private function is_editor_mode(): bool {

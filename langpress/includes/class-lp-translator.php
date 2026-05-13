@@ -222,13 +222,109 @@ class LP_Translator {
 
 		$translated = $this->cache[ $lang ][ $hash ];
 
-		// Replace all children with a single translated text node.
-		// Inline formatting (strong, em, span…) is intentionally flattened —
-		// the translation is a flat string and there is no safe way to re-wrap it.
+		// Try to rebuild the inline structure (strong, em, span…) by locating each
+		// inline child's text inside the translated string.  Falls back to flat text
+		// if any piece cannot be found (e.g. the inline text itself was translated).
+		if ( ! $this->apply_block_translation( $el, $translated ) ) {
+			while ( $el->firstChild ) {
+				$el->removeChild( $el->firstChild );
+			}
+			$el->appendChild( $el->ownerDocument->createTextNode( $translated ) );
+		}
+
+		return true;
+	}
+
+	/**
+	 * Apply a flat translated string to a block element while preserving inline
+	 * child elements (strong, em, span, etc.).
+	 *
+	 * For each inline child we search for its original text inside the translated
+	 * string (case-insensitive, extended to the next word boundary so "Meter"
+	 * matches "meters").  If every piece is found in order the element is rebuilt
+	 * with the inline tags intact.  Returns false if reconstruction fails so the
+	 * caller can fall back to a flat text replacement.
+	 */
+	private function apply_block_translation( DOMElement $el, string $translated ): bool {
+		// Collect direct inline-element children with their text and attributes.
+		$pieces = [];
+		foreach ( $el->childNodes as $child ) {
+			if ( ! ( $child instanceof DOMElement ) ) {
+				continue;
+			}
+			$text = $this->get_block_text( $child );
+			if ( $text === '' ) {
+				continue;
+			}
+			$attrs = [];
+			foreach ( $child->attributes as $attr ) {
+				$attrs[ $attr->name ] = $attr->value;
+			}
+			$pieces[] = [
+				'tag'   => strtolower( $child->nodeName ),
+				'text'  => $text,
+				'attrs' => $attrs,
+			];
+		}
+
+		if ( empty( $pieces ) ) {
+			return false; // No inline elements — nothing to preserve.
+		}
+
+		// Locate each piece inside the translated string in order.
+		$remaining = $translated;
+		$segments  = [];
+
+		foreach ( $pieces as $piece ) {
+			$pos = mb_stripos( $remaining, $piece['text'] );
+			if ( $pos === false ) {
+				return false; // Piece not found — bail, caller uses flat text.
+			}
+
+			// Extend the match forward to the nearest non-word character so
+			// "Meter" (5 chars) correctly captures "meters" (6 chars).
+			$end = $pos + mb_strlen( $piece['text'] );
+			while ( $end < mb_strlen( $remaining )
+				&& preg_match( '/[\p{L}\p{N}]/u', mb_substr( $remaining, $end, 1 ) )
+			) {
+				$end++;
+			}
+
+			if ( $pos > 0 ) {
+				$segments[] = [ 'type' => 'text', 'content' => mb_substr( $remaining, 0, $pos ) ];
+			}
+			$segments[] = [
+				'type'    => 'element',
+				'tag'     => $piece['tag'],
+				'attrs'   => $piece['attrs'],
+				'content' => mb_substr( $remaining, $pos, $end - $pos ),
+			];
+
+			$remaining = mb_substr( $remaining, $end );
+		}
+
+		if ( $remaining !== '' ) {
+			$segments[] = [ 'type' => 'text', 'content' => $remaining ];
+		}
+
+		// Rebuild the element from the segments.
 		while ( $el->firstChild ) {
 			$el->removeChild( $el->firstChild );
 		}
-		$el->appendChild( $el->ownerDocument->createTextNode( $translated ) );
+
+		$doc = $el->ownerDocument;
+		foreach ( $segments as $seg ) {
+			if ( $seg['type'] === 'text' ) {
+				$el->appendChild( $doc->createTextNode( $seg['content'] ) );
+			} else {
+				$child_el = $doc->createElement( $seg['tag'] );
+				foreach ( $seg['attrs'] as $name => $val ) {
+					$child_el->setAttribute( $name, $val );
+				}
+				$child_el->appendChild( $doc->createTextNode( $seg['content'] ) );
+				$el->appendChild( $child_el );
+			}
+		}
 
 		return true;
 	}

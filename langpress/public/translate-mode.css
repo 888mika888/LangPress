@@ -1,376 +1,64 @@
-/* =========================================================
-   LangPress Translate Mode – Floating Sidebar
-   z-index:
-     Admin Bar   99999
-     Sidebar     99998
-     Toggle-Btn  99997
-     Pencil      9990
-     Highlight   auto
-   ========================================================= */
+/* LangPress – Floating Action Button (admin translation trigger) */
 
-/* ---------- Toggle-Button (floating, bottom-left) ---------- */
-#lp-toolbar {
+#lp-fab {
     position: fixed;
     bottom: 24px;
     left: 24px;
     z-index: 99997;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-}
-
-#lp-mode-toggle {
     display: inline-flex;
     align-items: center;
-    gap: 7px;
-    padding: 11px 20px;
+    gap: 8px;
+    padding: 12px 20px;
     background: #1d2327;
     color: #ffffff;
-    border: none;
-    border-radius: 30px;
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, .35);
-    transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
-    white-space: nowrap;
-    letter-spacing: 0.2px;
-    line-height: 1;
-}
-
-#lp-mode-toggle:hover {
-    background: #2c3338;
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(0, 0, 0, .4);
-}
-
-/* Toggle sichtbar über Sidebar */
-body.lp-translate-active #lp-toolbar {
-    left: 316px;
-}
-
-/* ---------- Sidebar ---------- */
-#lp-sidebar {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 300px;
-    height: 100vh;
-    z-index: 99998;
-    background: #ffffff;
-    box-shadow: 4px 0 24px rgba(0, 0, 0, .18);
-    display: flex;
-    flex-direction: column;
+    text-decoration: none;
+    border-radius: 50px;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     font-size: 13px;
-    color: #1d2327;
-    overflow: hidden;
-    animation: lp-slide-in 0.22s cubic-bezier(.22, .61, .36, 1);
-}
-
-/* Admin-Bar-Abstand */
-.admin-bar #lp-sidebar {
-    top: 32px;
-    height: calc(100vh - 32px);
-}
-
-@media screen and (max-width: 782px) {
-    .admin-bar #lp-sidebar {
-        top: 46px;
-        height: calc(100vh - 46px);
-    }
-}
-
-@keyframes lp-slide-in {
-    from { transform: translateX(-100%); opacity: 0; }
-    to   { transform: translateX(0);     opacity: 1; }
-}
-
-/* --- Sidebar Header --- */
-.lp-sidebar__header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 14px 16px;
-    background: #f6f7f7;
-    border-bottom: 1px solid #e0e0e0;
-    flex-shrink: 0;
-}
-
-.lp-sidebar__title {
-    font-size: 14px;
-    font-weight: 700;
-    color: #1d2327;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
-
-.lp-sidebar__close {
-    width: 28px;
-    height: 28px;
-    background: transparent;
-    border: none;
-    border-radius: 50%;
-    font-size: 20px;
-    line-height: 1;
-    color: #646970;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: background 0.12s, color 0.12s;
-    padding: 0;
-}
-
-.lp-sidebar__close:hover {
-    background: #e0e0e0;
-    color: #1d2327;
-}
-
-/* --- Sidebar Body (scrollbar) --- */
-.lp-sidebar__body {
-    flex: 1;
-    overflow-y: auto;
-    padding: 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-}
-
-/* --- Sprach-Selector --- */
-.lp-sidebar__lang-row {
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-}
-
-.lp-sidebar__label {
-    font-size: 11px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: #646970;
-    display: flex;
-    align-items: center;
-    gap: 5px;
-}
-
-.lp-sidebar__select {
-    width: 100%;
-    padding: 7px 10px;
-    border: 1px solid #c3c4c7;
-    border-radius: 4px;
-    font-size: 13px;
-    color: #1d2327;
-    background: #ffffff;
-    cursor: pointer;
-    appearance: auto;
-}
-
-.lp-sidebar__select:focus {
-    border-color: #0073aa;
-    outline: none;
-    box-shadow: 0 0 0 1px #0073aa;
-}
-
-/* --- Hinweis (leer) --- */
-.lp-sidebar__hint {
-    background: #f6f7f7;
-    border: 1px dashed #c3c4c7;
-    border-radius: 6px;
-    padding: 20px 14px;
-    text-align: center;
-    color: #646970;
-    font-size: 12px;
-    line-height: 1.5;
-}
-
-.lp-sidebar__hint strong {
-    color: #0073aa;
-}
-
-/* --- Felder (Original + Übersetzung) --- */
-.lp-sidebar__fields {
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-}
-
-.lp-sidebar__field {
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-}
-
-.lp-sidebar__textarea {
-    width: 100%;
-    box-sizing: border-box;
-    padding: 9px 11px;
-    border: 1px solid #c3c4c7;
-    border-radius: 4px;
-    font-size: 13px;
-    line-height: 1.5;
-    resize: vertical;
-    min-height: 72px;
-    font-family: inherit;
-    color: #1d2327;
-    background: #ffffff;
-    transition: border-color 0.15s, box-shadow 0.15s;
-}
-
-.lp-sidebar__textarea:focus {
-    border-color: #0073aa;
-    outline: none;
-    box-shadow: 0 0 0 2px rgba(0, 115, 170, 0.2);
-}
-
-.lp-sidebar__textarea--readonly {
-    background: #f6f7f7;
-    color: #50575e;
-    cursor: default;
-    resize: none;
-}
-
-/* --- Nachrichten --- */
-.lp-sidebar__message {
-    padding: 8px 12px;
-    border-radius: 4px;
-    font-size: 12px;
     font-weight: 600;
-    display: none;
-}
-
-.lp-sidebar__message--visible {
-    display: block;
-}
-
-.lp-sidebar__message--success {
-    background: #d4edda;
-    color: #155724;
-    border: 1px solid #b8dfc5;
-}
-
-.lp-sidebar__message--error {
-    background: #f8d7da;
-    color: #721c24;
-    border: 1px solid #f1aeb5;
-}
-
-/* --- Sidebar Footer (Speichern-Button) --- */
-.lp-sidebar__footer {
-    padding: 14px 16px;
-    border-top: 1px solid #e0e0e0;
-    background: #f6f7f7;
-    flex-shrink: 0;
-}
-
-.lp-sidebar__save-btn {
-    width: 100%;
-    padding: 10px;
-    background: #0073aa;
-    color: #ffffff;
-    border: none;
-    border-radius: 5px;
-    font-size: 14px;
-    font-weight: 700;
-    cursor: pointer;
-    transition: background 0.15s, transform 0.1s;
     letter-spacing: 0.2px;
+    line-height: 1;
+    white-space: nowrap;
+    user-select: none;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, .35);
+    transition: background 0.2s ease, transform 0.22s cubic-bezier(.34, 1.56, .64, 1), box-shadow 0.2s ease;
+    animation: lp-fab-in 0.4s cubic-bezier(.34, 1.56, .64, 1) both;
 }
 
-.lp-sidebar__save-btn:hover {
-    background: #005a87;
+#lp-fab:hover,
+#lp-fab:focus-visible {
+    background: #2c3338;
+    color: #ffffff;
+    text-decoration: none;
+    transform: translateY(-3px) scale(1.04);
+    box-shadow: 0 8px 28px rgba(0, 0, 0, .42);
+    outline: none;
 }
 
-.lp-sidebar__save-btn:disabled {
-    background: #a7aaad;
-    cursor: not-allowed;
-    transform: none;
+#lp-fab:active {
+    transform: translateY(-1px) scale(1.01);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, .35);
+    transition-duration: 0.07s;
 }
 
-/* ---------- Pencil-Icons ---------- */
-.lp-has-pencil {
-    position: relative !important;
+.lp-fab__icon {
+    font-size: 15px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    transition: transform 0.22s cubic-bezier(.34, 1.56, .64, 1);
 }
 
-.lp-pencil-btn {
-    position: absolute !important;
-    top:   -9px !important;
-    right: -9px !important;
-    width:  26px !important;
-    height: 26px !important;
-    padding: 0 !important;
-    margin:  0 !important;
-    background: #0073aa !important;
-    color: #ffffff !important;
-    border: 2px solid #ffffff !important;
-    border-radius: 50% !important;
-    font-size: 12px !important;
-    line-height: 1 !important;
-    cursor: pointer !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, .28) !important;
-    opacity: 0;
-    pointer-events: auto !important;
-    transition: opacity 0.15s, background 0.15s, transform 0.15s !important;
-    z-index: 9990 !important;
-    outline: none !important;
+#lp-fab:hover .lp-fab__icon,
+#lp-fab:focus-visible .lp-fab__icon {
+    transform: rotate(-8deg) scale(1.2);
 }
 
-.lp-has-pencil:hover > .lp-pencil-btn,
-.lp-pencil-btn:focus-visible {
-    opacity: 1 !important;
+.lp-fab__label {
+    line-height: 1;
 }
 
-.lp-pencil-btn:hover {
-    background: #005a87 !important;
-    transform: scale(1.2) !important;
-    opacity: 1 !important;
-}
-
-/* --- Hover-Highlight im Übersetzungsmodus --- */
-body.lp-translate-active .lp-has-pencil {
-    outline: 1px dashed rgba(0, 115, 170, 0.3);
-    outline-offset: 2px;
-}
-
-body.lp-translate-active .lp-has-pencil:hover {
-    outline: 2px solid rgba(0, 115, 170, 0.6);
-    background-color: rgba(0, 115, 170, 0.03);
-}
-
-/* --- Angeklicktes / aktives Element --- */
-.lp-element-selected {
-    outline: 2px solid #0073aa !important;
-    outline-offset: 3px !important;
-    background-color: rgba(0, 115, 170, 0.05) !important;
-}
-
-/* ---------- Responsive ---------- */
-@media (max-width: 782px) {
-    #lp-sidebar {
-        width: 100%;
-        height: 55vh;
-        top: auto;
-        bottom: 0;
-        left: 0;
-        box-shadow: 0 -4px 24px rgba(0, 0, 0, .2);
-        animation: lp-slide-up 0.22s cubic-bezier(.22, .61, .36, 1);
-    }
-
-    .admin-bar #lp-sidebar {
-        top: auto;
-        height: 55vh;
-    }
-
-    body.lp-translate-active #lp-toolbar {
-        left: 24px;
-        bottom: calc(55vh + 12px);
-    }
-
-    @keyframes lp-slide-up {
-        from { transform: translateY(100%); opacity: 0; }
-        to   { transform: translateY(0);    opacity: 1; }
-    }
+@keyframes lp-fab-in {
+    from { opacity: 0; transform: translateY(14px) scale(0.88); }
+    to   { opacity: 1; transform: translateY(0)    scale(1); }
 }

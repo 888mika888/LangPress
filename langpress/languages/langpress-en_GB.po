@@ -286,3 +286,6 @@ msgstr "Translation statistics"
 
 msgid "Shortcode:"
 msgstr "Shortcode:"
+
+msgid "Datei zu groß. Maximum: 10 MB."
+msgstr "File too large. Maximum: 10 MB."

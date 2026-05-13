@@ -37,7 +37,7 @@ Note: Only the admin UI translation files for English are currently included. We
 ## Features
 
 - **Visual editor** — translate text directly on the live page without touching the WordPress editor
-- **Two translation modes** — full sidebar editor (all languages at once) or floating quick-translate (one language at a time)
+- **Floating action button** — a polished FAB in the bottom-left corner of every frontend page opens the full multi-language Translation Editor with one click
 - **Human translations only** — no auto-translation; every string is written by a human, ensuring accuracy and tone
 - **No duplicate pages** — translations are swapped in via PHP output buffering at runtime
 - **Manual control** — you decide what gets translated; ignored strings are never suggested again
@@ -80,20 +80,20 @@ The plugin creates its database tables and sets default options automatically on
 
 1. Go to **Translator → Languages** — confirm German as default, enable English and Ukrainian
 2. Go to **Translator → Settings** — pick a position (e.g. *Bottom Right*) and enable **Fix switcher on screen**
-3. Visit any page on your site as an admin → click **Translate Page** in the top bar
+3. Visit any page on your site as an admin → click the **✎ Translate Page** button at the bottom-left of the page
 4. Hover over any text → click the **✎** icon → type your translation → **Save**
 
 The language switcher will now appear on every page for all visitors.
 
 ---
 
-## Translation Modes
+## Translation Mode
 
-There are two ways to translate as an admin. Both are only visible to administrators — regular visitors never see them.
+The editor is only visible to administrators — regular visitors never see it.
 
 ### Translate Page (full editor)
 
-Click **Translate Page** in the WordPress admin bar at the top. This opens a sidebar alongside your live page shown in its original language.
+A floating **✎ Translate Page** button appears in the bottom-left corner of every frontend page when you are logged in as an admin. Click it to open the full Translation Editor alongside your live page in its original language.
 
 ```
 ┌─────────────────────┬──────────────────────────────────────────┐
@@ -119,16 +119,7 @@ Click **Translate Page** in the WordPress admin bar at the top. This opens a sid
 - Click the pencil → the original text loads in the sidebar; any existing translations are pre-filled
 - All target languages are shown at once — translate English and Ukrainian in one step
 - Click **Save** — goes live immediately
-
-### Quick Translate (floating button)
-
-A floating **✎ Translate** button appears in the bottom-left corner of every frontend page when you are logged in as an admin. Click it to open a floating sidebar.
-
-- Select the target language from the dropdown
-- Click any pencil icon on the page → type the translation → **Save**
-- Translates one language at a time
-- The mode stays active as you navigate between pages (stored in sessionStorage)
-- Click the toggle button or the × to close it
+- Click **×** to close the editor and return to the normal page
 
 ---
 
@@ -172,7 +163,7 @@ When a visitor loads a page in a non-default language:
 2. `LP_Frontend` starts PHP output buffering
 3. WordPress renders the full page HTML
 4. The buffer callback passes the HTML to `translate_html()`
-5. `DOMDocument` walks all visible text nodes and replaces any that have a translation in the in-memory cache
+5. `DOMDocument` walks the page: for block-level elements (`p`, `h1`–`h6`, `li`, etc.) it first tries a combined lookup of the element's full visible text, then falls back to per-text-node replacement. This ensures paragraphs that contain inline tags like `<strong>` or `<em>` are translated correctly and their formatting is preserved.
 6. Scripts, styles, HTML attributes, IDs, and classes are never touched
 
 **Cache:** All translations for the active language are loaded in a single query at the start of the request and held in a PHP array keyed by SHA-256 hash. With a persistent cache backend (Redis, Memcached), `wp_cache_set()` stores the map for 5 minutes across requests, so most page loads never hit the database at all.
@@ -233,12 +224,12 @@ langpress/
 │   ├── class-lp-activator.php          # DB install, default options on activation
 │   ├── class-lp-database.php           # All DB operations and schema migration
 │   ├── class-lp-translator.php         # Language detection, cache, DOM text replacement
-│   ├── class-lp-frontend.php           # Output buffering, admin bar button, editor mode
+│   ├── class-lp-frontend.php           # Output buffering, editor mode, text registration
 │   ├── class-lp-language-switcher.php  # Switcher HTML, shortcode, widget, AJAX
 │   └── class-lp-admin.php              # All admin pages and AJAX handlers
 ├── public/
 │   ├── public.{css,js}                  # Language switcher styles and interaction
-│   ├── translate-mode.{css,js}          # Floating quick-translate sidebar
+│   ├── translate-mode.{css,js}          # Floating action button (opens the full editor)
 │   └── translation-editor.{css,js}      # Full visual editor (pencil icons, sidebar)
 ├── admin/
 │   └── admin.{css,js}                   # WordPress admin panel UI
@@ -296,6 +287,11 @@ See the [LICENSE](LICENSE) file for details.
 - **RTL support** — Arabic now renders correctly. The `<html>` tag gets `dir="rtl"` automatically when Arabic is the active language, and the language switcher adapts its layout for right-to-left text.
 - **Caching plugin warning** — a notice appears on all LangPress admin pages when WP Rocket, W3 Total Cache, LiteSpeed Cache, WP Super Cache, Cache Enabler, or Comet Cache is active, explaining the output-buffer incompatibility.
 - **Import file size limit** — JSON imports are now rejected if the file exceeds 10 MB, preventing memory exhaustion on large uploads.
+- **Floating action button** — a polished pill-shaped FAB with entry animation, hover lift, and pencil icon rotation now sits at the bottom-left of every frontend page. Clicking it opens the full multi-language Translation Editor directly.
+- **Language switcher animation** — the dropdown now opens and closes with smooth `opacity`/`transform` transitions; the previous abrupt show/hide is gone.
+- **Inline formatting fix** — paragraphs containing `<strong>`, `<em>`, `<span>`, or other inline tags are now translated correctly. Previously the text was split across multiple DOM nodes and no translation was applied.
+- **Formatting preserved after translation** — when a block-level translation is applied, inline elements (`<strong>`, `<em>`, etc.) are reconstructed in the translated output by locating the original inline content inside the translated string.
+- **Fixed: error message when loading existing translations fails** — the Translation Editor sidebar now shows an error instead of silently clearing the loading indicator.
 
 ### 1.2.0
 - Visual Translation Editor: "Translate Page" button in admin bar opens a full sidebar editor

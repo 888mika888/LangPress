@@ -1,4 +1,4 @@
-/* global LP_Editor */
+﻿/* global LP_Editor */
 ( function () {
     'use strict';
 
@@ -197,7 +197,9 @@
                     if ( f ) f.value = t[ lang ] || '';
                 } );
             } )
-            .catch( clearMsg );
+            .catch( function () {
+                showMsg( 'Could not load existing translations.', 'error' );
+            } );
     }
 
     function doSave() {
@@ -268,3 +270,4 @@
     }
 
 } )();
+

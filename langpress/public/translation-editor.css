@@ -389,17 +389,3 @@ body.lp-editor-active #wpadminbar {
 }
 .lp-string-panel__link:hover { background: #005a87; color: #fff; }
 
-/* ---------- Admin Bar Button ---------- */
-#wpadminbar #wp-admin-bar-lp-translate-page > .ab-item {
-    color: #eaaf36 !important;
-    font-weight: 600;
-}
-#wpadminbar #wp-admin-bar-lp-translate-page > .ab-item:hover,
-#wpadminbar #wp-admin-bar-lp-translate-page.hover > .ab-item {
-    color: #fff !important;
-    background: #0073aa !important;
-}
-#wpadminbar #wp-admin-bar-lp-translate-page .ab-icon::before {
-    content: '\f326';
-    top: 2px;
-}

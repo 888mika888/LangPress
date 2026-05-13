@@ -3,7 +3,7 @@
  * Plugin Name: LangPress
  * Plugin URI:  https://github.com/888mika888/PluginWP
  * Description: Multilingual WordPress plugin with a visual translation editor. Supports German, English and Ukrainian without creating duplicate pages.
- * Version:     1.2.0
+ * Version:     1.3.0
  * Author:      888mika888
  * Author URI:  https://github.com/888mika888
  * Text Domain: langpress
@@ -15,7 +15,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'LP_VERSION',      '1.2.0' );
+define( 'LP_VERSION',      '1.3.0' );
 define( 'LP_PLUGIN_FILE',  __FILE__ );
 define( 'LP_PLUGIN_DIR',   plugin_dir_path( __FILE__ ) );
 define( 'LP_PLUGIN_URL',   plugin_dir_url( __FILE__ ) );

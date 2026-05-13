@@ -2,7 +2,7 @@
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Admin-Interface: Menüs, Einstellungsseiten, Übersetzungsverwaltung.
+ * All admin menus, settings pages, and AJAX handlers.
  */
 class LP_Admin {
 
@@ -13,18 +13,16 @@ class LP_Admin {
 		add_action( 'admin_enqueue_scripts', [ $this, 'enqueue_assets' ] );
 		add_action( 'admin_init',            [ $this, 'handle_form_submissions' ] );
 
-		// AJAX-Handler für Übersetzungsverwaltung
-		add_action( 'wp_ajax_lp_save_translation',  [ $this, 'ajax_save_translation' ] );
-		add_action( 'wp_ajax_lp_update_status',     [ $this, 'ajax_update_status' ] );
-		add_action( 'wp_ajax_lp_delete_translation',[ $this, 'ajax_delete_translation' ] );
-		add_action( 'wp_ajax_lp_export',            [ $this, 'ajax_export' ] );
-		add_action( 'wp_ajax_lp_clear_cache',          [ $this, 'ajax_clear_cache' ] );
-		add_action( 'wp_ajax_lp_reinstall_db',         [ $this, 'ajax_reinstall_db' ] );
-		add_action( 'wp_ajax_lp_get_translation',      [ $this, 'ajax_get_translation' ] );
-		add_action( 'wp_ajax_lp_get_page_translations',[ $this, 'ajax_get_page_translations' ] );
-
-		// Plugin-Aktionslinks
+		add_action( 'wp_ajax_lp_save_translation',       [ $this, 'ajax_save_translation' ] );
+		add_action( 'wp_ajax_lp_update_status',          [ $this, 'ajax_update_status' ] );
+		add_action( 'wp_ajax_lp_delete_translation',     [ $this, 'ajax_delete_translation' ] );
+		add_action( 'wp_ajax_lp_export',                 [ $this, 'ajax_export' ] );
+		add_action( 'wp_ajax_lp_clear_cache',            [ $this, 'ajax_clear_cache' ] );
+		add_action( 'wp_ajax_lp_reinstall_db',           [ $this, 'ajax_reinstall_db' ] );
+		add_action( 'wp_ajax_lp_get_translation',        [ $this, 'ajax_get_translation' ] );
+		add_action( 'wp_ajax_lp_get_page_translations',  [ $this, 'ajax_get_page_translations' ] );
 		add_filter( 'plugin_action_links_' . LP_PLUGIN_BASENAME, [ $this, 'plugin_action_links' ] );
+		add_action( 'admin_notices',                      [ $this, 'notice_caching_plugin' ] );
 	}
 
 	public static function instance(): self {
@@ -35,7 +33,7 @@ class LP_Admin {
 	}
 
 	// -------------------------------------------------------------------------
-	// Menüs
+	// Menus
 	// -------------------------------------------------------------------------
 
 	public function register_menus(): void {
@@ -143,19 +141,21 @@ class LP_Admin {
 			'ajaxUrl' => admin_url( 'admin-ajax.php' ),
 			'nonce'   => wp_create_nonce( 'lp_admin_nonce' ),
 			'i18n'    => [
-				'saved'   => __( 'Gespeichert!', 'langpress' ),
-				'saveBtn' => __( 'Speichern', 'langpress' ),
-				'error'   => __( 'Fehler beim Speichern.', 'langpress' ),
-				'confirm' => __( 'Wirklich löschen?', 'langpress' ),
-				'active'  => __( 'Aktiv', 'langpress' ),
-				'pending' => __( 'Ausstehend', 'langpress' ),
-				'ignored' => __( 'Ignoriert', 'langpress' ),
+				'saved'           => __( 'Gespeichert!', 'langpress' ),
+				'saveBtn'         => __( 'Speichern', 'langpress' ),
+				'error'           => __( 'Fehler beim Speichern.', 'langpress' ),
+				'confirm'         => __( 'Wirklich löschen?', 'langpress' ),
+				'deleted'         => __( 'Deleted.', 'langpress' ),
+				'reinstallConfirm'=> __( 'Reinstall database tables? Existing data will be kept (dbDelta).', 'langpress' ),
+				'active'          => __( 'Aktiv', 'langpress' ),
+				'pending'         => __( 'Ausstehend', 'langpress' ),
+				'ignored'         => __( 'Ignoriert', 'langpress' ),
 			],
 		] );
 	}
 
 	// -------------------------------------------------------------------------
-	// Formularverarbeitung (klassische POST-Formulare)
+	// Form submissions
 	// -------------------------------------------------------------------------
 
 	public function handle_form_submissions(): void {
@@ -163,28 +163,24 @@ class LP_Admin {
 			return;
 		}
 
-		// Einstellungen
 		if ( isset( $_POST['lp_save_settings'], $_POST['_wpnonce'] ) ) {
 			if ( wp_verify_nonce( sanitize_key( $_POST['_wpnonce'] ), 'lp_settings_nonce' ) ) {
 				$this->save_settings();
 			}
 		}
 
-		// Sprachen
 		if ( isset( $_POST['lp_save_languages'], $_POST['_wpnonce'] ) ) {
 			if ( wp_verify_nonce( sanitize_key( $_POST['_wpnonce'] ), 'lp_languages_nonce' ) ) {
 				$this->save_languages();
 			}
 		}
 
-		// Design
 		if ( isset( $_POST['lp_save_design'], $_POST['_wpnonce'] ) ) {
 			if ( wp_verify_nonce( sanitize_key( $_POST['_wpnonce'] ), 'lp_design_nonce' ) ) {
 				$this->save_design();
 			}
 		}
 
-		// Import
 		if ( isset( $_POST['lp_do_import'], $_POST['_wpnonce'] ) ) {
 			if ( wp_verify_nonce( sanitize_key( $_POST['_wpnonce'] ), 'lp_import_nonce' ) ) {
 				$this->process_import();
@@ -193,7 +189,7 @@ class LP_Admin {
 	}
 
 	// -------------------------------------------------------------------------
-	// Speicher-Methoden
+	// Save handlers
 	// -------------------------------------------------------------------------
 
 	private function save_settings(): void {
@@ -239,7 +235,6 @@ class LP_Admin {
 			}
 		}
 
-		// Standardsprache immer in aktiven Sprachen
 		if ( ! in_array( $default, $active, true ) ) {
 			array_unshift( $active, $default );
 		}
@@ -247,7 +242,6 @@ class LP_Admin {
 		update_option( 'lp_default_language',  $default );
 		update_option( 'lp_active_languages',  $active );
 
-		// Cache leeren nach Sprachänderung
 		LP_Translator::instance()->invalidate_cache();
 
 		add_settings_error( 'lp', 'lp_saved', __( 'Sprachen gespeichert.', 'langpress' ), 'success' );
@@ -264,14 +258,12 @@ class LP_Admin {
 			$mode = 'text';
 		}
 
-		// Farben validieren (nur gültige HEX-Farben)
 		$color_fields = [ 'lp_bg_color', 'lp_text_color', 'lp_border_color', 'lp_hover_color' ];
 		foreach ( $color_fields as $field ) {
 			$val = sanitize_hex_color( $_POST[ $field ] ?? '#ffffff' ) ?: '#ffffff';
 			update_option( $field, $val );
 		}
 
-		// Numerische Felder
 		$num_fields = [ 'lp_border_radius', 'lp_font_size', 'lp_padding' ];
 		foreach ( $num_fields as $field ) {
 			$val = absint( $_POST[ $field ] ?? 0 );
@@ -291,6 +283,11 @@ class LP_Admin {
 			return;
 		}
 
+		if ( $_FILES['lp_import_file']['size'] > 10 * 1024 * 1024 ) {
+			add_settings_error( 'lp', 'lp_import_error', __( 'Datei zu groß. Maximum: 10 MB.', 'langpress' ), 'error' );
+			return;
+		}
+
 		$tmp_file = $_FILES['lp_import_file']['tmp_name'];
 		$ext      = strtolower( pathinfo( sanitize_file_name( $_FILES['lp_import_file']['name'] ), PATHINFO_EXTENSION ) );
 
@@ -306,7 +303,8 @@ class LP_Admin {
 		$count   = 0;
 
 		if ( ! is_array( $data ) ) {
-			add_settings_error( 'lp', 'lp_import_error', __( 'Ungültige JSON-Datei.', 'langpress' ), 'error' );
+			$json_err = json_last_error() !== JSON_ERROR_NONE ? ' (' . json_last_error_msg() . ')' : '';
+			add_settings_error( 'lp', 'lp_import_error', __( 'Ungültige JSON-Datei.', 'langpress' ) . esc_html( $json_err ), 'error' );
 			return;
 		}
 
@@ -405,7 +403,6 @@ class LP_Admin {
 			$status = 'active';
 		}
 
-		// Wenn Übersetzungstext vorhanden → automatisch aktivieren
 		if ( $translated !== '' && $status !== 'ignored' ) {
 			$status = 'active';
 		}
@@ -578,7 +575,7 @@ class LP_Admin {
 	}
 
 	// -------------------------------------------------------------------------
-	// Admin-Seiten
+	// Admin pages
 	// -------------------------------------------------------------------------
 
 	public function page_settings(): void {
@@ -753,7 +750,6 @@ class LP_Admin {
 		$default_lang = get_option( 'lp_default_language', 'de' );
 		$all_langs    = LP_Translator::available_languages();
 
-		// Filter & Paginierung
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		$paged        = max( 1, absint( $_GET['paged'] ?? 1 ) );
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
@@ -1179,7 +1175,7 @@ class LP_Admin {
 	}
 
 	// -------------------------------------------------------------------------
-	// Hilfsmethoden
+	// Helpers
 	// -------------------------------------------------------------------------
 
 	private function render_nav( string $current ): void {
@@ -1206,6 +1202,51 @@ class LP_Admin {
 			'ignored' => __( 'Ignoriert', 'langpress' ),
 			default   => __( 'Ausstehend', 'langpress' ),
 		};
+	}
+
+	public function notice_caching_plugin(): void {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$page = sanitize_key( wp_unslash( $_GET['page'] ?? '' ) );
+		if ( strpos( $page, 'lp-' ) !== 0 ) {
+			return;
+		}
+
+		if ( ! function_exists( 'is_plugin_active' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/plugin.php';
+		}
+
+		$known = [
+			'wp-rocket/wp-rocket.php'             => 'WP Rocket',
+			'w3-total-cache/w3-total-cache.php'   => 'W3 Total Cache',
+			'litespeed-cache/litespeed-cache.php' => 'LiteSpeed Cache',
+			'wp-super-cache/wp-cache.php'         => 'WP Super Cache',
+			'cache-enabler/cache-enabler.php'     => 'Cache Enabler',
+			'comet-cache/comet-cache.php'         => 'Comet Cache',
+		];
+
+		$found = [];
+		foreach ( $known as $file => $name ) {
+			if ( is_plugin_active( $file ) ) {
+				$found[] = $name;
+			}
+		}
+
+		if ( empty( $found ) ) {
+			return;
+		}
+
+		$names   = '<strong>' . esc_html( implode( ', ', $found ) ) . '</strong>';
+		$message = sprintf(
+			/* translators: %s: comma-separated list of caching plugin names */
+			__( '%s detected. Page caching can bypass LangPress\'s output buffer — translations may not appear on cached pages. Exclude translated URLs from your cache, or flush the cache after saving translations.', 'langpress' ),
+			$names
+		);
+
+		echo '<div class="notice notice-warning"><p>';
+		echo '<strong>' . esc_html__( 'LangPress:', 'langpress' ) . '</strong> ';
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		echo wp_kses_post( $message );
+		echo '</p></div>';
 	}
 
 	public function plugin_action_links( array $links ): array {

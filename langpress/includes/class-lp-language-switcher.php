@@ -2,7 +2,7 @@
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Sprachumschalter: Shortcode, Widget, Frontend-HTML.
+ * Language switcher: shortcode, widget, and frontend HTML rendering.
  */
 class LP_Language_Switcher {
 
@@ -14,11 +14,8 @@ class LP_Language_Switcher {
 		add_action( 'wp_enqueue_scripts', [ $this, 'enqueue_translate_mode' ] );
 		add_action( 'wp_footer', [ $this, 'maybe_render_fixed' ] );
 
-		// AJAX: Sprachenwechsel ohne Seiten-Reload
 		add_action( 'wp_ajax_nopriv_lp_switch_lang', [ $this, 'ajax_switch_lang' ] );
 		add_action( 'wp_ajax_lp_switch_lang',        [ $this, 'ajax_switch_lang' ] );
-
-		// Widget registrieren
 		add_action( 'widgets_init', [ $this, 'register_widget' ] );
 	}
 
@@ -36,8 +33,7 @@ class LP_Language_Switcher {
 	public function enqueue_assets(): void {
 		$fixed = (bool) get_option( 'lp_position_fixed', false );
 
-		// Fixed-Switcher: Assets auf ALLEN Seiten laden.
-		// Seiten-Filter gilt nur für den inline/shortcode Modus.
+		// Fixed switcher loads assets on all pages — page filter only applies to inline/shortcode.
 		if ( ! $fixed && ! $this->should_show_on_current_page() ) {
 			return;
 		}
@@ -66,21 +62,21 @@ class LP_Language_Switcher {
 	}
 
 	/**
-	 * Translate-Mode Assets – nur für eingeloggte Administratoren.
-	 * Lädt unabhängig von should_show_on_current_page().
+	 * Enqueue the floating quick-translate assets for logged-in administrators.
+	 * Runs regardless of should_show_on_current_page() so the toolbar always appears.
 	 */
 	public function enqueue_translate_mode(): void {
 		if ( ! is_user_logged_in() || ! current_user_can( 'manage_options' ) ) {
 			return;
 		}
 
-		// Full editor mode has its own sidebar — don't load the floating quick-mode too
+		// The full editor replaces the FAB on its own page — skip this enqueue entirely.
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		if ( isset( $_GET['lp_translation_editor'] ) && $_GET['lp_translation_editor'] === '1' ) {
 			return;
 		}
 
-		// Public-Assets sicherstellen (falls Switcher auf dieser Seite deaktiviert)
+		// Ensure public assets are loaded even when the switcher is hidden on this page.
 		wp_enqueue_style( 'lp-public', LP_PLUGIN_URL . 'public/public.css', [], LP_VERSION );
 		wp_enqueue_script( 'lp-public', LP_PLUGIN_URL . 'public/public.js', [], LP_VERSION, true );
 
@@ -105,11 +101,12 @@ class LP_Language_Switcher {
 			'currentLang' => LP_Translator::instance()->get_current_language(),
 			'defaultLang' => get_option( 'lp_default_language', 'de' ),
 			'activeLangs' => get_option( 'lp_active_languages', [ 'de', 'en', 'uk' ] ),
+			'langMeta'    => LP_Translator::available_languages(),
 		] );
 	}
 
 	// -------------------------------------------------------------------------
-	// Sichtbarkeitslogik
+	// Visibility
 	// -------------------------------------------------------------------------
 
 	private function should_show_on_current_page(): bool {
@@ -133,13 +130,13 @@ class LP_Language_Switcher {
 	}
 
 	// -------------------------------------------------------------------------
-	// HTML-Generierung
+	// HTML rendering
 	// -------------------------------------------------------------------------
 
 	/**
-	 * Den Sprachumschalter als HTML-String erzeugen.
+	 * Build the switcher HTML.
 	 *
-	 * @param bool $shortcode_context  true wenn aus Shortcode aufgerufen
+	 * @param bool $shortcode_context  Pass true when called from the shortcode or widget.
 	 */
 	public function render( bool $shortcode_context = false ): string {
 		$active_langs  = (array) get_option( 'lp_active_languages', [ 'de', 'en', 'uk' ] );
@@ -150,7 +147,6 @@ class LP_Language_Switcher {
 		$position      = get_option( 'lp_switcher_position', 'bottom-right' );
 		$fixed         = (bool) get_option( 'lp_position_fixed', false );
 
-		// CSS-Custom-Properties für Styling
 		$custom_css = $this->build_inline_css();
 
 		$wrapper_class = 'lp-switcher lp-switcher--' . esc_attr( $style );
@@ -158,6 +154,9 @@ class LP_Language_Switcher {
 			$wrapper_class .= ' lp-switcher--inline';
 		} elseif ( $fixed ) {
 			$wrapper_class .= ' lp-switcher--fixed lp-switcher--' . esc_attr( $position );
+		}
+		if ( LP_Translator::is_rtl_language( $current_lang ) ) {
+			$wrapper_class .= ' lp-switcher--rtl';
 		}
 
 		$html  = '<div class="' . esc_attr( $wrapper_class ) . '" style="' . esc_attr( $custom_css ) . '">';
@@ -189,7 +188,7 @@ class LP_Language_Switcher {
 	}
 
 	/**
-	 * Label für eine Sprache je nach Darstellungsmodus erzeugen.
+	 * Build the display label for a language (flag, text, or both).
 	 *
 	 * @param string $lang_code
 	 * @param string $mode       text|flag|both
@@ -215,20 +214,19 @@ class LP_Language_Switcher {
 	}
 
 	/**
-	 * URL für Sprachenwechsel erzeugen (aktueller Request + lp_lang-Parameter).
+	 * Build a URL for switching to the given language code.
 	 */
 	private function get_lang_url( string $lang_code ): string {
 		$current_url = ( is_ssl() ? 'https://' : 'http://' )
 					 . sanitize_text_field( wp_unslash( $_SERVER['HTTP_HOST'] ?? '' ) )
 					 . sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ?? '/' ) );
 
-		// Bestehenden lp_lang-Parameter entfernen, neuen setzen
 		$url = remove_query_arg( 'lp_lang', $current_url );
 		return add_query_arg( 'lp_lang', $lang_code, $url );
 	}
 
 	/**
-	 * Inline-CSS-Custom-Properties aus den gespeicherten Styling-Optionen bauen.
+	 * Build inline CSS custom properties from the saved design options.
 	 */
 	private function build_inline_css(): string {
 		$props = [
@@ -267,7 +265,7 @@ class LP_Language_Switcher {
 			return;
 		}
 
-		// Fixed-Switcher erscheint auf ALLEN Seiten – Seiten-Filter gilt nur für inline/shortcode.
+		// Fixed mode ignores the page filter — it appears on every page.
 		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 		echo $this->render( false );
 	}
@@ -300,7 +298,7 @@ class LP_Language_Switcher {
 }
 
 /**
- * Einfaches WordPress-Widget für den Sprachumschalter.
+ * WordPress widget that renders the language switcher.
  */
 class LP_Language_Widget extends WP_Widget {
 

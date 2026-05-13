@@ -95,11 +95,12 @@
         .done( function ( res ) {
             if ( res.success ) {
                 $row.fadeOut( 300, () => $row.remove() );
-                showToast( 'Deleted.', 'success' );
+                showToast( LP_Admin.i18n.deleted, 'success' );
             } else {
                 showToast( res.data?.message || LP_Admin.i18n.error, 'error' );
             }
-        } );
+        } )
+        .fail( () => showToast( LP_Admin.i18n.error, 'error' ) );
     } );
 
     $( '#lp-export-btn' ).on( 'click', function () {
@@ -107,24 +108,46 @@
     } );
 
     $( '#lp-clear-cache' ).on( 'click', function () {
-        const $btn = $( this );
+        const $btn    = $( this );
+        const origText = $btn.text();
         $btn.prop( 'disabled', true ).text( '…' );
         $.post( LP_Admin.ajaxUrl, { action: 'lp_clear_cache', nonce: LP_Admin.nonce } )
-            .always( function () {
-                $btn.prop( 'disabled', false ).text( 'Cache cleared ✓' );
-                setTimeout( () => $btn.text( 'Clear translation cache' ), 2000 );
-            } );
+            .done( function ( res ) {
+                if ( res.success ) {
+                    $btn.text( '✓' );
+                    setTimeout( () => $btn.text( origText ), 2000 );
+                } else {
+                    showToast( res.data?.message || LP_Admin.i18n.error, 'error' );
+                    $btn.text( origText );
+                }
+            } )
+            .fail( function () {
+                showToast( LP_Admin.i18n.error, 'error' );
+                $btn.text( origText );
+            } )
+            .always( () => $btn.prop( 'disabled', false ) );
     } );
 
     $( '#lp-reinstall-db' ).on( 'click', function () {
-        if ( ! confirm( 'Reinstall database tables? Existing data will be kept (dbDelta).' ) ) return;
-        const $btn = $( this );
+        if ( ! confirm( LP_Admin.i18n.reinstallConfirm ) ) return;
+        const $btn    = $( this );
+        const origText = $btn.text();
         $btn.prop( 'disabled', true ).text( '…' );
         $.post( LP_Admin.ajaxUrl, { action: 'lp_reinstall_db', nonce: LP_Admin.nonce } )
-            .always( function () {
-                $btn.prop( 'disabled', false ).text( 'Reinstalled ✓' );
-                setTimeout( () => $btn.text( 'Reinstall database' ), 2000 );
-            } );
+            .done( function ( res ) {
+                if ( res.success ) {
+                    $btn.text( '✓' );
+                    setTimeout( () => $btn.text( origText ), 2000 );
+                } else {
+                    showToast( res.data?.message || LP_Admin.i18n.error, 'error' );
+                    $btn.text( origText );
+                }
+            } )
+            .fail( function () {
+                showToast( LP_Admin.i18n.error, 'error' );
+                $btn.text( origText );
+            } )
+            .always( () => $btn.prop( 'disabled', false ) );
     } );
 
     // Keep the design preview in sync as the user adjusts color and size inputs.

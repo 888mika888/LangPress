@@ -1,25 +1,22 @@
-<?php
+﻿<?php
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Handles three frontend concerns:
- *   1. Admin-bar "Translate Page" button
- *   2. Visual translation editor mode (?lp_translation_editor=1)
- *   3. PHP output buffering that swaps text nodes for the active language
+ * Handles two frontend concerns:
+ *   1. Visual translation editor mode (?lp_translation_editor=1)
+ *   2. PHP output buffering that swaps text nodes for the active language
  */
 class LP_Frontend {
 
 	private static ?self $instance = null;
 
 	private function __construct() {
-		// admin_bar_menu fires on both frontend and admin — register it
-		// before the is_admin() guard so the button always appears in the frontend bar.
-		add_action( 'admin_bar_menu', [ $this, 'add_admin_bar_button' ], 100 );
-
 		if ( is_admin() ) {
 			return;
 		}
 
+		add_action( 'wp_head',           [ $this, 'inject_hreflang_tags' ] );
+		add_filter( 'language_attributes', [ $this, 'maybe_add_rtl_dir' ] );
 		add_action( 'template_redirect', [ $this, 'maybe_start_editor_mode' ], 0 );
 		add_action( 'template_redirect', [ $this, 'start_output_buffer' ], 1 );
 		add_action( 'template_redirect', [ $this, 'maybe_register_texts' ], 5 );
@@ -30,28 +27,6 @@ class LP_Frontend {
 			self::$instance = new self();
 		}
 		return self::$instance;
-	}
-
-	public function add_admin_bar_button( WP_Admin_Bar $wp_admin_bar ): void {
-		if ( ! current_user_can( 'manage_options' ) || is_admin() ) {
-			return;
-		}
-
-		$current_url = ( is_ssl() ? 'https://' : 'http://' )
-			. sanitize_text_field( wp_unslash( $_SERVER['HTTP_HOST'] ?? '' ) )
-			. sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ?? '/' ) );
-
-		$editor_url = add_query_arg(
-			'lp_translation_editor', '1',
-			remove_query_arg( 'lp_translation_editor', $current_url )
-		);
-
-		$wp_admin_bar->add_node( [
-			'id'    => 'lp-translate-page',
-			'title' => '<span class="ab-icon dashicons dashicons-translation"></span> Translate Page',
-			'href'  => esc_url( $editor_url ),
-			'meta'  => [ 'class' => 'lp-translate-page-btn', 'title' => 'Open the visual translation editor' ],
-		] );
 	}
 
 	private function is_editor_mode(): bool {
@@ -266,6 +241,20 @@ class LP_Frontend {
 			if ( $node->getAttribute( 'translate' ) === 'no' ) {
 				return;
 			}
+
+			// Mirror the block-level strategy in LP_Translator::walk_dom():
+			// collect the full combined text for block elements so the registered hash
+			// matches what the visual editor saves (JS innerText of the whole element).
+			if ( in_array( $tag, LP_Translator::BLOCK_TAGS, true ) ) {
+				$translator = LP_Translator::instance();
+				if ( ! $translator->subtree_has_bail_tag( $node ) ) {
+					$combined = $translator->get_block_text( $node );
+					if ( $combined !== '' && mb_strlen( $combined ) >= 2 && preg_match( '/\p{L}/u', $combined ) ) {
+						$texts[] = $combined;
+						return;
+					}
+				}
+			}
 		}
 
 		if ( $node instanceof DOMText ) {
@@ -281,9 +270,53 @@ class LP_Frontend {
 		}
 	}
 
+	public function inject_hreflang_tags(): void {
+		$active_langs = (array) get_option( 'lp_active_languages', [ 'de', 'en', 'uk' ] );
+		if ( count( $active_langs ) < 2 ) {
+			return;
+		}
+
+		$default_lang = get_option( 'lp_default_language', 'de' );
+		$base_url     = remove_query_arg( [ 'lp_lang', 'lp_translation_editor' ], $this->get_current_url() );
+
+		foreach ( $active_langs as $lang_code ) {
+			$href = ( $lang_code === $default_lang )
+				? $base_url
+				: add_query_arg( 'lp_lang', $lang_code, $base_url );
+			echo '<link rel="alternate" hreflang="' . esc_attr( $lang_code ) . '" href="' . esc_url( $href ) . '">' . "\n";
+		}
+
+		// x-default points to the default-language URL with no lang override.
+		echo '<link rel="alternate" hreflang="x-default" href="' . esc_url( $base_url ) . '">' . "\n";
+	}
+
+	public function maybe_add_rtl_dir( string $output ): string {
+		$lang    = LP_Translator::instance()->get_current_language();
+		$default = get_option( 'lp_default_language', 'de' );
+
+		if ( $lang === $default ) {
+			return $output;
+		}
+
+		// Swap the lang attribute to match the active language so screen
+		// readers and SEO tools see the correct language code (e.g. "ar" not "de").
+		$output = preg_replace( '/lang="[^"]*"/', 'lang="' . esc_attr( $lang ) . '"', $output ) ?? $output;
+
+		if ( LP_Translator::is_rtl_language( $lang ) ) {
+			if ( strpos( $output, 'dir=' ) !== false ) {
+				$output = preg_replace( '/dir="[^"]*"/', 'dir="rtl"', $output ) ?? $output;
+			} else {
+				$output .= ' dir="rtl"';
+			}
+		}
+
+		return $output;
+	}
+
 	private function get_current_url(): string {
 		return ( is_ssl() ? 'https://' : 'http://' )
 			 . sanitize_text_field( wp_unslash( $_SERVER['HTTP_HOST'] ?? 'localhost' ) )
 			 . sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ?? '/' ) );
 	}
 }
+

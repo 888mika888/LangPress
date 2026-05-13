@@ -1,4 +1,4 @@
-/* global LP_Editor */
+﻿/* global LP_Editor */
 ( function () {
     'use strict';
 
@@ -184,7 +184,10 @@
         if ( cfg.postId ) fd.append( 'post_id', cfg.postId );
 
         fetch( cfg.ajaxUrl, { method: 'POST', body: fd, credentials: 'same-origin' } )
-            .then( r => r.json() )
+            .then( function ( r ) {
+                if ( ! r.ok ) throw new Error( 'HTTP ' + r.status );
+                return r.json();
+            } )
             .then( function ( res ) {
                 clearMsg();
                 if ( ! res.success ) return;
@@ -194,7 +197,9 @@
                     if ( f ) f.value = t[ lang ] || '';
                 } );
             } )
-            .catch( clearMsg );
+            .catch( function () {
+                showMsg( 'Could not load existing translations.', 'error' );
+            } );
     }
 
     function doSave() {
@@ -228,7 +233,10 @@
             fd.append( 'status',     'active' );
             if ( cfg.postId ) fd.append( 'post_id', cfg.postId );
             return fetch( cfg.ajaxUrl, { method: 'POST', body: fd, credentials: 'same-origin' } )
-                .then( function ( r ) { return r.json(); } );
+                .then( function ( r ) {
+                    if ( ! r.ok ) throw new Error( 'HTTP ' + r.status );
+                    return r.json();
+                } );
         } );
 
         Promise.all( requests )
@@ -262,3 +270,4 @@
     }
 
 } )();
+

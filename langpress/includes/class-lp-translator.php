@@ -179,7 +179,21 @@ class LP_Translator {
 				return;
 			}
 
-			if ( in_array( $tag, self::BLOCK_TAGS, true ) && $this->try_translate_block( $node ) ) {
+			if ( in_array( $tag, self::BLOCK_TAGS, true ) ) {
+				if ( $this->has_inline_children( $node ) ) {
+					// Block contains inline elements (strong, em, span…).
+					// Translate individual text nodes first so formatting is preserved.
+					// Only fall back to combined block replacement if no individual
+					// translations exist (combined would flatten all tags to plain text).
+					if ( ! $this->translate_node_tree( $node ) ) {
+						$this->try_translate_block( $node );
+					}
+				} elseif ( ! $this->try_translate_block( $node ) ) {
+					// No inline children — combined translation is safe. If it fails,
+					// fall through to the per-child recursion below.
+				} else {
+					return;
+				}
 				return;
 			}
 		}
@@ -327,6 +341,46 @@ class LP_Translator {
 		}
 
 		return true;
+	}
+
+	/** Return true if the element has at least one DOMElement child (e.g. strong, em). */
+	private function has_inline_children( DOMNode $node ): bool {
+		foreach ( $node->childNodes as $child ) {
+			if ( $child instanceof DOMElement ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Walk every text node in a subtree and translate it individually,
+	 * descending into inline elements (strong, em, span…) without removing them.
+	 * Returns true if at least one text node was changed.
+	 */
+	private function translate_node_tree( DOMNode $node ): bool {
+		$any = false;
+		foreach ( iterator_to_array( $node->childNodes ) as $child ) {
+			if ( $child instanceof DOMText ) {
+				$translated = $this->translate( $child->nodeValue );
+				if ( $translated !== $child->nodeValue ) {
+					$child->nodeValue = $translated;
+					$any              = true;
+				}
+			} elseif ( $child instanceof DOMElement ) {
+				$tag = strtolower( $child->nodeName );
+				if ( in_array( $tag, [ 'script', 'style', 'noscript', 'code', 'pre' ], true ) ) {
+					continue;
+				}
+				if ( $child->getAttribute( 'translate' ) === 'no' ) {
+					continue;
+				}
+				if ( $this->translate_node_tree( $child ) ) {
+					$any = true;
+				}
+			}
+		}
+		return $any;
 	}
 
 	/**

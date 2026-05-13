@@ -333,6 +333,60 @@ class LP_Database {
 		return preg_replace( '/\s+/', ' ', trim( $text ) ) ?? trim( $text );
 	}
 
+	/**
+	 * Fallback lookup by the original_text column (exact match after normalization).
+	 * Used when the stored text_hash was computed with an older algorithm so the
+	 * primary hash-based lookup returns nothing, but the text is still in the table.
+	 */
+	public function get_translation_by_original_text( string $text, string $language_code ): ?string {
+		global $wpdb;
+
+		$row = $wpdb->get_row(
+			$wpdb->prepare(
+				"SELECT translated_text, status FROM {$this->table_translations}
+				 WHERE original_text = %s AND language_code = %s
+				 AND status != 'ignored' AND translated_text != ''
+				 LIMIT 1",
+				$text,
+				$language_code
+			),
+			ARRAY_A
+		);
+
+		if ( ! $row ) {
+			return null;
+		}
+
+		return $row['translated_text'];
+	}
+
+	/**
+	 * Fallback lookup by the normalized_text column.
+	 * Catches rows whose original_text was stored with different whitespace
+	 * than the incoming text but whose normalized form matches.
+	 */
+	public function get_translation_by_normalized( string $normalized, string $language_code ): ?string {
+		global $wpdb;
+
+		$row = $wpdb->get_row(
+			$wpdb->prepare(
+				"SELECT translated_text, status FROM {$this->table_translations}
+				 WHERE normalized_text = %s AND language_code = %s
+				 AND status != 'ignored' AND translated_text != ''
+				 LIMIT 1",
+				$normalized,
+				$language_code
+			),
+			ARRAY_A
+		);
+
+		if ( ! $row ) {
+			return null;
+		}
+
+		return $row['translated_text'];
+	}
+
 	public function get_table_translations(): string {
 		return $this->table_translations;
 	}

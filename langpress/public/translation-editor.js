@@ -12,7 +12,9 @@
         'select', 'option', 'meta', 'link', 'head', 'br', 'hr',
     ] );
 
-    const BLOCK_SELECTORS = 'h1, h2, h3, h4, h5, h6, p, li, a, button, label, td, th, figcaption, blockquote, dt, dd';
+    // Include inline formatting elements so their content can be translated
+    // individually without touching the surrounding block's structure.
+    const BLOCK_SELECTORS = 'h1, h2, h3, h4, h5, h6, p, li, a, button, label, td, th, figcaption, blockquote, dt, dd, strong, b, em, i, u, small';
 
     let selectedEl   = null;
     let selectedText = '';

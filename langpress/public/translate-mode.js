@@ -6,18 +6,16 @@
 
     const cfg = LP_Translate;
 
-    // Tags komplett überspringen
     const SKIP_TAGS = new Set( [
         'script', 'style', 'noscript', 'code', 'pre',
         'textarea', 'iframe', 'svg', 'path', 'input',
         'select', 'option', 'meta', 'link', 'head',
     ] );
 
-    // Ziel-Elemente für Stift-Icons
     const BLOCK_SEL = 'p, h1, h2, h3, h4, h5, h6, li, td, th, dt, dd, figcaption, blockquote';
     const LEAF_SEL  = 'a, button, label';
 
-    // Sprachdaten – kommen von PHP (LP_Translate.langMeta) damit JS immer aktuell ist.
+    // Language metadata comes from PHP so new languages automatically appear in the sidebar.
     const LANG_META = cfg.langMeta || {};
 
     // Status
@@ -26,26 +24,17 @@
     let selectedText    = '';
     let targetLang      = getFirstTargetLang();
 
-    // -----------------------------------------------------------------------
-    // Boot
-    // -----------------------------------------------------------------------
     document.addEventListener( 'DOMContentLoaded', function () {
         buildToolbar();
         if ( modeActive ) activateMode();
     } );
 
-    // -----------------------------------------------------------------------
-    // Erste verfügbare Zielsprache ermitteln
-    // -----------------------------------------------------------------------
     function getFirstTargetLang() {
         const active  = cfg.activeLangs  || [ 'de', 'en', 'uk' ];
         const defLang = cfg.defaultLang  || 'de';
         return active.find( function ( l ) { return l !== defLang; } ) || 'en';
     }
 
-    // -----------------------------------------------------------------------
-    // Toolbar-Button
-    // -----------------------------------------------------------------------
     function buildToolbar() {
         const bar = document.createElement( 'div' );
         bar.id = 'lp-toolbar';
@@ -65,17 +54,14 @@
         const btn = document.getElementById( 'lp-mode-toggle' );
         if ( ! btn ) return;
         if ( modeActive ) {
-            btn.textContent = '✎ Modus beenden';
+            btn.textContent = '✎ Stop Translating';
             btn.classList.add( 'lp-mode-btn--active' );
         } else {
-            btn.textContent = '✎ Seite übersetzen';
+            btn.textContent = '✎ Translate Page';
             btn.classList.remove( 'lp-mode-btn--active' );
         }
     }
 
-    // -----------------------------------------------------------------------
-    // Modus umschalten
-    // -----------------------------------------------------------------------
     function toggleMode() {
         modeActive = ! modeActive;
         sessionStorage.setItem( 'lp_translate_mode', modeActive ? '1' : '0' );
@@ -100,9 +86,6 @@
         removeSidebar();
     }
 
-    // -----------------------------------------------------------------------
-    // Sidebar aufbauen
-    // -----------------------------------------------------------------------
     function buildSidebar() {
         if ( document.getElementById( 'lp-sidebar' ) ) return;
 
@@ -130,32 +113,30 @@
         sidebar.innerHTML =
             '<div class="lp-sidebar__header">'
           +     '<span class="lp-sidebar__title">✎ Translation Editor</span>'
-          +     '<button class="lp-sidebar__close" id="lp-sidebar-close" type="button" aria-label="Schließen">&times;</button>'
+          +     '<button class="lp-sidebar__close" id="lp-sidebar-close" type="button" aria-label="Close">&times;</button>'
           + '</div>'
           + '<div class="lp-sidebar__body">'
           +     '<div class="lp-sidebar__lang-row">'
-          +         '<label class="lp-sidebar__label" for="lp-target-lang">Zielsprache</label>'
+          +         '<label class="lp-sidebar__label" for="lp-target-lang">Target language</label>'
           +         '<select class="lp-sidebar__select" id="lp-target-lang">' + options + '</select>'
           +     '</div>'
           +     '<div class="lp-sidebar__hint" id="lp-hint">'
-          +         'Klicke auf ein <strong>✎</strong> um einen Text zu übersetzen.'
+          +         'Click <strong>✎</strong> on any text to translate it.'
           +     '</div>'
           +     '<div class="lp-sidebar__fields" id="lp-fields" style="display:none">'
           +         '<div class="lp-sidebar__field">'
-          +             '<label class="lp-sidebar__label" id="lp-from-label">' + fromLabel + ' Originaltext</label>'
+          +             '<label class="lp-sidebar__label" id="lp-from-label">' + fromLabel + ' Original</label>'
           +             '<textarea class="lp-sidebar__textarea lp-sidebar__textarea--readonly" id="lp-sidebar-original" readonly rows="4"></textarea>'
-          +             '<span class="lp-sidebar__label" style="font-size:10px;margin-top:2px">Text</span>'
           +         '</div>'
           +         '<div class="lp-sidebar__field">'
-          +             '<label class="lp-sidebar__label" id="lp-to-label">🇬🇧 English</label>'
-          +             '<textarea class="lp-sidebar__textarea" id="lp-sidebar-trans" rows="4" placeholder="Übersetzung eingeben…"></textarea>'
-          +             '<span class="lp-sidebar__label" style="font-size:10px;margin-top:2px">Text</span>'
+          +             '<label class="lp-sidebar__label" id="lp-to-label"></label>'
+          +             '<textarea class="lp-sidebar__textarea" id="lp-sidebar-trans" rows="4" placeholder="Enter translation…"></textarea>'
           +         '</div>'
           +         '<div class="lp-sidebar__message" id="lp-sidebar-msg"></div>'
           +     '</div>'
           + '</div>'
           + '<div class="lp-sidebar__footer" id="lp-sidebar-footer" style="display:none">'
-          +     '<button class="lp-sidebar__save-btn" id="lp-sidebar-save" type="button">Speichern</button>'
+          +     '<button class="lp-sidebar__save-btn" id="lp-sidebar-save" type="button">Save</button>'
           + '</div>';
 
         document.body.appendChild( sidebar );
@@ -171,13 +152,12 @@
         document.getElementById( 'lp-target-lang' ).addEventListener( 'change', function () {
             targetLang = this.value;
             updateTargetLabel();
-            // Neue Sprache → vorhandene Übersetzung laden falls Element gewählt
-            if ( selectedText ) {
-                fetchAndFill( selectedText );
-            }
+            if ( selectedText ) fetchAndFill( selectedText );
         } );
 
         document.getElementById( 'lp-sidebar-save' ).addEventListener( 'click', doSave );
+
+        updateTargetLabel();
     }
 
     function removeSidebar() {
@@ -191,9 +171,6 @@
         if ( label ) label.textContent = meta.flag + ' ' + meta.native;
     }
 
-    // -----------------------------------------------------------------------
-    // Sidebar-Felder befüllen
-    // -----------------------------------------------------------------------
     function showFields( show ) {
         const fields  = document.getElementById( 'lp-fields' );
         const footer  = document.getElementById( 'lp-sidebar-footer' );
@@ -227,9 +204,6 @@
         msg.className   = 'lp-sidebar__message lp-sidebar__message--' + type + ' lp-sidebar__message--visible';
     }
 
-    // -----------------------------------------------------------------------
-    // Stift-Icons
-    // -----------------------------------------------------------------------
     function addPencilIcons() {
         const candidates = [
             ...document.querySelectorAll( BLOCK_SEL ),
@@ -250,7 +224,7 @@
             btn.className = 'lp-pencil-btn';
             btn.type      = 'button';
             btn.innerHTML = '&#9998;';
-            btn.title     = 'Übersetzen';
+            btn.title     = 'Translate';
             btn.setAttribute( 'translate', 'no' );
 
             const capturedText = text;
@@ -289,11 +263,7 @@
         return ( clone.innerText || clone.textContent || '' ).trim().replace( /\s+/g, ' ' );
     }
 
-    // -----------------------------------------------------------------------
-    // Element auswählen
-    // -----------------------------------------------------------------------
     function selectElement( el, text ) {
-        // Altes Element abwählen
         clearSelectedElement();
 
         selectedElement = el;
@@ -306,17 +276,13 @@
         setTranslationText( '' );
         clearMsg();
         showFields( true );
-
-        // Vorhandene Übersetzung laden
         fetchAndFill( text );
 
-        // Sidebar-Textarea fokussieren
         setTimeout( function () {
             const ta = document.getElementById( 'lp-sidebar-trans' );
             if ( ta ) ta.focus();
         }, 80 );
 
-        // Sidebar ins Sichtfeld scrollen (mobile)
         const sidebar = document.getElementById( 'lp-sidebar' );
         if ( sidebar ) sidebar.scrollTop = 0;
     }
@@ -329,12 +295,9 @@
         }
     }
 
-    // -----------------------------------------------------------------------
-    // AJAX: vorhandene Übersetzung laden
-    // -----------------------------------------------------------------------
     function fetchAndFill( originalText ) {
         const ta = document.getElementById( 'lp-sidebar-trans' );
-        if ( ta ) ta.placeholder = 'Lädt…';
+        if ( ta ) ta.placeholder = 'Loading…';
 
         const fd = new FormData();
         fd.append( 'action',   'lp_get_translation' );
@@ -347,30 +310,26 @@
                 return r.json();
             } )
             .then( function ( res ) {
-                if ( ta ) ta.placeholder = 'Übersetzung eingeben…';
+                if ( ta ) ta.placeholder = 'Enter translation…';
                 if ( ! res.success ) return;
-                const translations = res.data.translations || {};
-                setTranslationText( translations[ targetLang ] || '' );
+                setTranslationText( ( res.data.translations || {} )[ targetLang ] || '' );
             } )
             .catch( function () {
-                if ( ta ) ta.placeholder = 'Übersetzung eingeben…';
+                if ( ta ) ta.placeholder = 'Enter translation…';
             } );
     }
 
-    // -----------------------------------------------------------------------
-    // AJAX: Übersetzung speichern
-    // -----------------------------------------------------------------------
     function doSave() {
         const translated = ( document.getElementById( 'lp-sidebar-trans' )?.value || '' ).trim();
         const saveBtn    = document.getElementById( 'lp-sidebar-save' );
 
         if ( ! selectedText ) {
-            showMsg( 'Kein Text ausgewählt.', 'error' );
+            showMsg( 'No text selected.', 'error' );
             return;
         }
 
         if ( ! translated ) {
-            showMsg( 'Bitte eine Übersetzung eingeben.', 'error' );
+            showMsg( 'Please enter a translation.', 'error' );
             return;
         }
 
@@ -394,18 +353,18 @@
             } )
             .then( function ( res ) {
                 if ( res.success ) {
-                    showMsg( '✓ Gespeichert!', 'success' );
+                    showMsg( '✓ Saved!', 'success' );
                 } else {
-                    showMsg( res.data?.message || 'Fehler beim Speichern.', 'error' );
+                    showMsg( res.data?.message || 'Error saving.', 'error' );
                 }
             } )
             .catch( function () {
-                showMsg( 'Netzwerkfehler. Bitte erneut versuchen.', 'error' );
+                showMsg( 'Network error. Please try again.', 'error' );
             } )
             .finally( function () {
                 if ( saveBtn ) {
                     saveBtn.disabled    = false;
-                    saveBtn.textContent = 'Speichern';
+                    saveBtn.textContent = 'Save';
                 }
             } );
     }

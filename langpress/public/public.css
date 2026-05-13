@@ -1,8 +1,5 @@
-/* =========================================================
-   LangPress – Frontend-Sprachumschalter
-   ========================================================= */
+/* LangPress – Language Switcher */
 
-/* ---------- CSS-Custom-Properties (Fallback-Werte) ---------- */
 .lp-switcher {
     --lp-bg:        #ffffff;
     --lp-text:      #333333;
@@ -22,7 +19,7 @@
     box-sizing: border-box;
 }
 
-/* ---------- Aktuelle Sprache (Trigger) ---------- */
+/* Trigger button */
 .lp-switcher__current {
     display: flex;
     align-items: center;
@@ -33,29 +30,30 @@
     border-radius: var(--lp-radius);
     cursor: pointer;
     white-space: nowrap;
-    transition: background 0.15s, border-color 0.15s;
+    transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
 }
 
 .lp-switcher__current:hover {
     background: var(--lp-hover);
+    box-shadow: 0 2px 8px rgba(0,0,0,.08);
 }
 
 .lp-switcher__arrow {
     font-size: 10px;
     margin-left: auto;
-    transition: transform 0.2s;
+    transition: transform 0.2s ease;
     display: inline-block;
+    opacity: .6;
 }
 
 .lp-switcher--open .lp-switcher__arrow {
     transform: rotate(180deg);
 }
 
-/* ---------- Dropdown-Liste ---------- */
+/* Dropdown list — uses visibility/opacity for smooth open AND close */
 .lp-switcher__list {
-    display: none;
     position: absolute;
-    top: calc(100% + 2px);
+    top: calc(100% + 4px);
     left: 0;
     min-width: 100%;
     background: var(--lp-bg);
@@ -64,19 +62,28 @@
     margin: 0;
     padding: 4px 0;
     list-style: none;
-    box-shadow: 0 4px 12px rgba(0,0,0,.12);
+    box-shadow: 0 6px 16px rgba(0,0,0,.12);
     z-index: 10000;
     overflow: hidden;
+
+    /* Hidden state */
+    visibility: hidden;
+    opacity: 0;
+    transform: translateY(-6px);
+    pointer-events: none;
+
+    /* Closing: delay visibility so opacity/transform can animate out */
+    transition: opacity 0.18s ease, transform 0.18s ease, visibility 0s linear 0.18s;
 }
 
 .lp-switcher--open .lp-switcher__list {
-    display: block;
-    animation: lp-dropdown-in 0.15s ease;
-}
+    visibility: visible;
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
 
-@keyframes lp-dropdown-in {
-    from { opacity: 0; transform: translateY(-4px); }
-    to   { opacity: 1; transform: translateY(0); }
+    /* Opening: visibility immediate, then opacity/transform animate in */
+    transition: opacity 0.18s ease, transform 0.18s ease, visibility 0s;
 }
 
 .lp-switcher__item {
@@ -93,7 +100,7 @@
     color: var(--lp-text);
     text-decoration: none;
     white-space: nowrap;
-    transition: background 0.1s;
+    transition: background 0.12s;
 }
 
 .lp-switcher__link:hover {
@@ -106,7 +113,14 @@
     background: var(--lp-hover);
 }
 
-/* ---------- Schaltflächen-Stil ---------- */
+.lp-switcher__item--active .lp-switcher__link::after {
+    content: '✓';
+    margin-left: auto;
+    font-size: 11px;
+    opacity: .6;
+}
+
+/* Buttons style */
 .lp-switcher--buttons .lp-switcher__current {
     display: none;
 }
@@ -121,7 +135,11 @@
     box-shadow: none;
     padding: 0;
     background: transparent;
-    animation: none;
+    visibility: visible !important;
+    opacity: 1 !important;
+    transform: none !important;
+    pointer-events: auto !important;
+    transition: none !important;
 }
 
 .lp-switcher--buttons .lp-switcher__item {
@@ -139,7 +157,7 @@
     border-color: currentColor;
 }
 
-/* ---------- Flaggen & Labels ---------- */
+/* Flags and labels */
 .lp-flag {
     font-size: calc( var(--lp-font-size) * 1.3 );
     line-height: 1;
@@ -150,7 +168,7 @@
     line-height: 1.2;
 }
 
-/* ---------- Fixed-Position ---------- */
+/* Fixed position */
 .lp-switcher--fixed {
     position: fixed;
     z-index: 100000;
@@ -161,11 +179,17 @@
 .lp-switcher--bottom-left  { bottom: 16px; left: 16px; }
 .lp-switcher--bottom-right { bottom: 16px; right: 16px; }
 
-/* Bei fixed-Position Dropdown nach oben öffnen wenn Platz fehlt */
+/* Bottom-positioned: dropdown opens upward */
 .lp-switcher--bottom-left  .lp-switcher__list,
 .lp-switcher--bottom-right .lp-switcher__list {
     top: auto;
-    bottom: calc(100% + 2px);
+    bottom: calc(100% + 4px);
+    transform: translateY(6px);
+}
+
+.lp-switcher--bottom-left.lp-switcher--open  .lp-switcher__list,
+.lp-switcher--bottom-right.lp-switcher--open .lp-switcher__list {
+    transform: translateY(0);
 }
 
 .lp-switcher--bottom-right .lp-switcher__list,
@@ -174,13 +198,13 @@
     right: 0;
 }
 
-/* ---------- Inline (Shortcode / Widget) ---------- */
+/* Inline (shortcode / widget) */
 .lp-switcher--inline {
     display: inline-block;
     vertical-align: middle;
 }
 
-/* ---------- Responsive ---------- */
+/* Responsive */
 @media (max-width: 600px) {
     .lp-switcher {
         font-size: calc( var(--lp-font-size) * 0.9 );
@@ -189,19 +213,19 @@
     .lp-switcher--fixed {
         bottom: 12px !important;
         right:  12px !important;
-        top:  auto  !important;
-        left: auto  !important;
+        top:    auto !important;
+        left:   auto !important;
     }
 
     .lp-switcher--fixed .lp-switcher__list {
         top:    auto;
-        bottom: calc(100% + 2px);
+        bottom: calc(100% + 4px);
         left:   auto;
         right:  0;
     }
 }
 
-/* ---------- RTL languages (e.g. Arabic) ---------- */
+/* RTL languages (e.g. Arabic) */
 .lp-switcher--rtl,
 .lp-switcher--rtl .lp-switcher__current,
 .lp-switcher--rtl .lp-switcher__link {
@@ -219,14 +243,14 @@
     right: 0;
 }
 
-/* ---------- Zugänglichkeit: Focus-Ring ---------- */
+/* Focus ring */
 .lp-switcher__link:focus-visible,
 .lp-switcher__current:focus-visible {
     outline: 2px solid #0073aa;
     outline-offset: 1px;
 }
 
-/* ---------- Lade-Indikator (bei AJAX-Sprachenwechsel) ---------- */
+/* Loading spinner while language changes */
 .lp-switcher--loading .lp-switcher__current::after {
     content: '';
     display: inline-block;

@@ -292,6 +292,10 @@ See the [LICENSE](LICENSE) file for details.
 - **Inline formatting fix** — paragraphs containing `<strong>`, `<em>`, `<span>`, or other inline tags are now translated correctly. Previously the text was split across multiple DOM nodes and no translation was applied.
 - **Formatting preserved after translation** — when a block-level translation is applied, inline elements (`<strong>`, `<em>`, etc.) are reconstructed in the translated output by locating the original inline content inside the translated string.
 - **Fixed: error message when loading existing translations fails** — the Translation Editor sidebar now shows an error instead of silently clearing the loading indicator.
+- **Dark mode** — a "Dark Mode" checkbox in Settings applies a full dark theme to all LangPress admin pages.
+- **Translation Editor UI** — tab bar and duplicate top Save button removed; a "Manage strings ↗" link replaces them inline next to the language pill.
+- **Fixed: language switcher in editor mode** — switching language while the Translation Editor is open now exits editor mode and shows the translated page, so saved translations are immediately visible.
+- **Fixed: language switcher blue outline** — browser default blue focus ring no longer appears on click; keyboard focus outline is preserved via `:focus-visible`.
 
 ### 1.2.0
 - Visual Translation Editor: "Translate Page" button in admin bar opens a full sidebar editor

@@ -18,7 +18,6 @@
     // Language metadata comes from PHP so new languages automatically appear in the sidebar.
     const LANG_META = cfg.langMeta || {};
 
-    // Status
     let modeActive      = sessionStorage.getItem( 'lp_translate_mode' ) === '1';
     let selectedElement = null;
     let selectedText    = '';
@@ -92,7 +91,6 @@
         const active  = cfg.activeLangs  || [ 'de', 'en', 'uk' ];
         const defLang = cfg.defaultLang  || 'de';
 
-        // Sprachoptionen für Select (ohne Standardsprache)
         const options = active
             .filter( function ( l ) { return l !== defLang; } )
             .map( function ( l ) {
@@ -141,7 +139,6 @@
 
         document.body.appendChild( sidebar );
 
-        // Events
         document.getElementById( 'lp-sidebar-close' ).addEventListener( 'click', function () {
             modeActive = false;
             sessionStorage.setItem( 'lp_translate_mode', '0' );

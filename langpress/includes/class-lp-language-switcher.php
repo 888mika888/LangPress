@@ -70,7 +70,7 @@ class LP_Language_Switcher {
 			return;
 		}
 
-		// Full editor mode has its own sidebar — don't load the floating quick-mode too
+		// The full editor replaces the FAB on its own page — skip this enqueue entirely.
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		if ( isset( $_GET['lp_translation_editor'] ) && $_GET['lp_translation_editor'] === '1' ) {
 			return;

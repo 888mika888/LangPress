@@ -154,8 +154,12 @@
                     if ( f ) f.value = t[ lang ] || '';
                 } );
             } )
-            .catch( function () {
-                showMsg( 'Could not load existing translations.', 'error' );
+            .catch( function ( err ) {
+                // Log to console but do not block the UI — the user can still enter translations.
+                if ( window.console ) {
+                    console.warn( 'LangPress: could not load existing translations.', err );
+                }
+                clearMsg();
             } );
     }
 

@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 defined( 'ABSPATH' ) || exit;
 
 /**
@@ -241,6 +241,20 @@ class LP_Frontend {
 			if ( $node->getAttribute( 'translate' ) === 'no' ) {
 				return;
 			}
+
+			// Mirror the block-level strategy in LP_Translator::walk_dom():
+			// collect the full combined text for block elements so the registered hash
+			// matches what the visual editor saves (JS innerText of the whole element).
+			if ( in_array( $tag, LP_Translator::BLOCK_TAGS, true ) ) {
+				$translator = LP_Translator::instance();
+				if ( ! $translator->subtree_has_bail_tag( $node ) ) {
+					$combined = $translator->get_block_text( $node );
+					if ( $combined !== '' && mb_strlen( $combined ) >= 2 && preg_match( '/\p{L}/u', $combined ) ) {
+						$texts[] = $combined;
+						return;
+					}
+				}
+			}
 		}
 
 		if ( $node instanceof DOMText ) {
@@ -305,3 +319,4 @@ class LP_Frontend {
 			 . sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ?? '/' ) );
 	}
 }
+

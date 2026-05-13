@@ -13,20 +13,16 @@ class LP_Admin {
 		add_action( 'admin_enqueue_scripts', [ $this, 'enqueue_assets' ] );
 		add_action( 'admin_init',            [ $this, 'handle_form_submissions' ] );
 
-		// AJAX-Handler für Übersetzungsverwaltung
-		add_action( 'wp_ajax_lp_save_translation',  [ $this, 'ajax_save_translation' ] );
-		add_action( 'wp_ajax_lp_update_status',     [ $this, 'ajax_update_status' ] );
-		add_action( 'wp_ajax_lp_delete_translation',[ $this, 'ajax_delete_translation' ] );
-		add_action( 'wp_ajax_lp_export',            [ $this, 'ajax_export' ] );
-		add_action( 'wp_ajax_lp_clear_cache',          [ $this, 'ajax_clear_cache' ] );
-		add_action( 'wp_ajax_lp_reinstall_db',         [ $this, 'ajax_reinstall_db' ] );
-		add_action( 'wp_ajax_lp_get_translation',      [ $this, 'ajax_get_translation' ] );
-		add_action( 'wp_ajax_lp_get_page_translations',[ $this, 'ajax_get_page_translations' ] );
-
-		// Plugin-Aktionslinks
+		add_action( 'wp_ajax_lp_save_translation',       [ $this, 'ajax_save_translation' ] );
+		add_action( 'wp_ajax_lp_update_status',          [ $this, 'ajax_update_status' ] );
+		add_action( 'wp_ajax_lp_delete_translation',     [ $this, 'ajax_delete_translation' ] );
+		add_action( 'wp_ajax_lp_export',                 [ $this, 'ajax_export' ] );
+		add_action( 'wp_ajax_lp_clear_cache',            [ $this, 'ajax_clear_cache' ] );
+		add_action( 'wp_ajax_lp_reinstall_db',           [ $this, 'ajax_reinstall_db' ] );
+		add_action( 'wp_ajax_lp_get_translation',        [ $this, 'ajax_get_translation' ] );
+		add_action( 'wp_ajax_lp_get_page_translations',  [ $this, 'ajax_get_page_translations' ] );
 		add_filter( 'plugin_action_links_' . LP_PLUGIN_BASENAME, [ $this, 'plugin_action_links' ] );
-
-		add_action( 'admin_notices', [ $this, 'notice_caching_plugin' ] );
+		add_action( 'admin_notices',                      [ $this, 'notice_caching_plugin' ] );
 	}
 
 	public static function instance(): self {
@@ -1223,6 +1219,10 @@ class LP_Admin {
 		$page = sanitize_key( wp_unslash( $_GET['page'] ?? '' ) );
 		if ( strpos( $page, 'lp-' ) !== 0 ) {
 			return;
+		}
+
+		if ( ! function_exists( 'is_plugin_active' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/plugin.php';
 		}
 
 		$known = [

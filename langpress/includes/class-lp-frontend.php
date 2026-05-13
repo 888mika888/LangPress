@@ -37,6 +37,9 @@ class LP_Frontend {
 	}
 
 	public function maybe_start_editor_mode(): void {
+		if ( ! self::should_translate_request() ) {
+			return;
+		}
 		if ( ! $this->is_editor_mode() ) {
 			return;
 		}
@@ -148,7 +151,46 @@ class LP_Frontend {
 		<?php
 	}
 
+	/**
+	 * Returns true only for normal public frontend GET requests that expect an HTML response.
+	 * Must return false for REST API, AJAX, cron, autosave, XML-RPC, and any non-GET request
+	 * so LangPress never starts output buffering or modifies content during Gutenberg saves,
+	 * media uploads, or other API calls.
+	 */
+	private static function should_translate_request(): bool {
+		if ( defined( 'REST_REQUEST' ) && REST_REQUEST )     return false;
+		if ( defined( 'XMLRPC_REQUEST' ) && XMLRPC_REQUEST ) return false;
+		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) return false;
+		if ( wp_doing_cron() )                               return false;
+		if ( wp_doing_ajax() )                               return false;
+
+		// Only GET requests deliver browseable HTML pages.
+		if ( ( $_SERVER['REQUEST_METHOD'] ?? 'GET' ) !== 'GET' ) return false;
+
+		// Block known non-frontend URI patterns.
+		$uri = isset( $_SERVER['REQUEST_URI'] )
+			? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) )
+			: '';
+
+		$blocked_patterns = [
+			'/wp-json/',
+			'admin-ajax.php',
+			'async-upload.php',
+			'media-upload.php',
+			'upload.php',
+			'admin-post.php',
+		];
+		foreach ( $blocked_patterns as $pattern ) {
+			if ( str_contains( $uri, $pattern ) ) return false;
+		}
+
+		return true;
+	}
+
 	public function start_output_buffer(): void {
+		if ( ! self::should_translate_request() ) {
+			return;
+		}
 		if ( LP_Translator::instance()->is_default_language() ) {
 			return;
 		}
@@ -156,9 +198,26 @@ class LP_Frontend {
 	}
 
 	public function process_output( string $html ): string {
-		if ( trim( $html ) === '' || $this->is_non_html_request() ) {
+		if ( trim( $html ) === '' ) {
 			return $html;
 		}
+
+		// Never modify JSON, XML, or non-HTML responses even if the buffer fired.
+		$first = ltrim( $html );
+		if ( $first !== '' && ( $first[0] === '{' || $first[0] === '[' ) ) {
+			return $html;
+		}
+		if ( 0 === stripos( $first, '<?xml' ) || 0 === stripos( $first, '<rss' ) ) {
+			return $html;
+		}
+		if ( false === stripos( $html, '<html' ) && false === stripos( $html, '<!DOCTYPE' ) ) {
+			return $html;
+		}
+
+		if ( $this->is_non_html_request() ) {
+			return $html;
+		}
+
 		return LP_Translator::instance()->translate_html( $html );
 	}
 
@@ -182,6 +241,9 @@ class LP_Frontend {
 	 * Throttled to once per URL per day via a transient.
 	 */
 	public function maybe_register_texts(): void {
+		if ( ! self::should_translate_request() ) {
+			return;
+		}
 		if ( ! LP_Translator::instance()->is_default_language() ) {
 			return;
 		}

@@ -2,7 +2,7 @@
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Admin-Interface: Menüs, Einstellungsseiten, Übersetzungsverwaltung.
+ * All admin menus, settings pages, and AJAX handlers.
  */
 class LP_Admin {
 
@@ -33,7 +33,7 @@ class LP_Admin {
 	}
 
 	// -------------------------------------------------------------------------
-	// Menüs
+	// Menus
 	// -------------------------------------------------------------------------
 
 	public function register_menus(): void {
@@ -155,7 +155,7 @@ class LP_Admin {
 	}
 
 	// -------------------------------------------------------------------------
-	// Formularverarbeitung (klassische POST-Formulare)
+	// Form submissions
 	// -------------------------------------------------------------------------
 
 	public function handle_form_submissions(): void {
@@ -163,28 +163,24 @@ class LP_Admin {
 			return;
 		}
 
-		// Einstellungen
 		if ( isset( $_POST['lp_save_settings'], $_POST['_wpnonce'] ) ) {
 			if ( wp_verify_nonce( sanitize_key( $_POST['_wpnonce'] ), 'lp_settings_nonce' ) ) {
 				$this->save_settings();
 			}
 		}
 
-		// Sprachen
 		if ( isset( $_POST['lp_save_languages'], $_POST['_wpnonce'] ) ) {
 			if ( wp_verify_nonce( sanitize_key( $_POST['_wpnonce'] ), 'lp_languages_nonce' ) ) {
 				$this->save_languages();
 			}
 		}
 
-		// Design
 		if ( isset( $_POST['lp_save_design'], $_POST['_wpnonce'] ) ) {
 			if ( wp_verify_nonce( sanitize_key( $_POST['_wpnonce'] ), 'lp_design_nonce' ) ) {
 				$this->save_design();
 			}
 		}
 
-		// Import
 		if ( isset( $_POST['lp_do_import'], $_POST['_wpnonce'] ) ) {
 			if ( wp_verify_nonce( sanitize_key( $_POST['_wpnonce'] ), 'lp_import_nonce' ) ) {
 				$this->process_import();
@@ -193,7 +189,7 @@ class LP_Admin {
 	}
 
 	// -------------------------------------------------------------------------
-	// Speicher-Methoden
+	// Save handlers
 	// -------------------------------------------------------------------------
 
 	private function save_settings(): void {
@@ -239,7 +235,6 @@ class LP_Admin {
 			}
 		}
 
-		// Standardsprache immer in aktiven Sprachen
 		if ( ! in_array( $default, $active, true ) ) {
 			array_unshift( $active, $default );
 		}
@@ -247,7 +242,6 @@ class LP_Admin {
 		update_option( 'lp_default_language',  $default );
 		update_option( 'lp_active_languages',  $active );
 
-		// Cache leeren nach Sprachänderung
 		LP_Translator::instance()->invalidate_cache();
 
 		add_settings_error( 'lp', 'lp_saved', __( 'Sprachen gespeichert.', 'langpress' ), 'success' );
@@ -264,14 +258,12 @@ class LP_Admin {
 			$mode = 'text';
 		}
 
-		// Farben validieren (nur gültige HEX-Farben)
 		$color_fields = [ 'lp_bg_color', 'lp_text_color', 'lp_border_color', 'lp_hover_color' ];
 		foreach ( $color_fields as $field ) {
 			$val = sanitize_hex_color( $_POST[ $field ] ?? '#ffffff' ) ?: '#ffffff';
 			update_option( $field, $val );
 		}
 
-		// Numerische Felder
 		$num_fields = [ 'lp_border_radius', 'lp_font_size', 'lp_padding' ];
 		foreach ( $num_fields as $field ) {
 			$val = absint( $_POST[ $field ] ?? 0 );
@@ -411,7 +403,6 @@ class LP_Admin {
 			$status = 'active';
 		}
 
-		// Wenn Übersetzungstext vorhanden → automatisch aktivieren
 		if ( $translated !== '' && $status !== 'ignored' ) {
 			$status = 'active';
 		}
@@ -584,7 +575,7 @@ class LP_Admin {
 	}
 
 	// -------------------------------------------------------------------------
-	// Admin-Seiten
+	// Admin pages
 	// -------------------------------------------------------------------------
 
 	public function page_settings(): void {
@@ -759,7 +750,6 @@ class LP_Admin {
 		$default_lang = get_option( 'lp_default_language', 'de' );
 		$all_langs    = LP_Translator::available_languages();
 
-		// Filter & Paginierung
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		$paged        = max( 1, absint( $_GET['paged'] ?? 1 ) );
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
@@ -1185,7 +1175,7 @@ class LP_Admin {
 	}
 
 	// -------------------------------------------------------------------------
-	// Hilfsmethoden
+	// Helpers
 	// -------------------------------------------------------------------------
 
 	private function render_nav( string $current ): void {

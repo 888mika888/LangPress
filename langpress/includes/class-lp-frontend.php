@@ -14,12 +14,47 @@ class LP_Frontend {
 		if ( is_admin() ) {
 			return;
 		}
+		// Block contexts where LP must never touch output:
+		// PUT/PATCH/DELETE = Gutenberg saves, REST mutations.
+		// Known URI patterns = REST API, AJAX, uploads.
+		// wp_doing_ajax() catches admin-ajax.php (WP_ADMIN=true there, so LP_Admin handles it).
+		if ( self::is_excluded_request() ) {
+			return;
+		}
 
 		add_action( 'wp_head',           [ $this, 'inject_hreflang_tags' ] );
 		add_filter( 'language_attributes', [ $this, 'maybe_add_rtl_dir' ] );
 		add_action( 'template_redirect', [ $this, 'maybe_start_editor_mode' ], 0 );
 		add_action( 'template_redirect', [ $this, 'start_output_buffer' ], 1 );
 		add_action( 'template_redirect', [ $this, 'maybe_register_texts' ], 5 );
+	}
+
+	/**
+	 * Returns true for any request that is never a public HTML page.
+	 * Uses only data available at plugins_loaded time (no REST_REQUEST yet).
+	 */
+	private static function is_excluded_request(): bool {
+		if ( wp_doing_ajax() ) return true;
+		if ( wp_doing_cron() ) return true;
+
+		$method = strtoupper( $_SERVER['REQUEST_METHOD'] ?? 'GET' );
+		if ( $method !== 'GET' && $method !== 'HEAD' ) return true;
+
+		$uri = sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ?? '' ) );
+		foreach ( [
+			'/wp-json/',
+			'admin-ajax.php',
+			'async-upload.php',
+			'media-upload.php',
+			'upload.php',
+			'admin-post.php',
+			'wp-cron.php',
+			'xmlrpc.php',
+		] as $pattern ) {
+			if ( str_contains( $uri, $pattern ) ) return true;
+		}
+
+		return false;
 	}
 
 	public static function instance(): self {

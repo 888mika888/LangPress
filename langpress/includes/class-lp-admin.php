@@ -578,11 +578,27 @@ class LP_Admin {
 		$default_lang = get_option( 'lp_default_language', 'de' );
 		$translations = [];
 
+		$normalized = $db->normalize( $original );
+
 		foreach ( $active_langs as $lang ) {
 			if ( $lang === $default_lang ) {
 				continue;
 			}
+
+			// Primary lookup by normalized hash (current format).
 			$translated = $db->get_translation( $hash, $lang );
+
+			// Fallback 1: match by original_text column — covers rows saved by older
+			// versions whose text_hash was computed with a different algorithm.
+			if ( $translated === null ) {
+				$translated = $db->get_translation_by_original_text( $original, $lang );
+			}
+
+			// Fallback 2: match by normalized_text column — covers whitespace variants.
+			if ( $translated === null ) {
+				$translated = $db->get_translation_by_normalized( $normalized, $lang );
+			}
+
 			$translations[ $lang ] = $translated ?? '';
 		}
 

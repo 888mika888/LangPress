@@ -89,20 +89,6 @@ class LP_Frontend {
 				<span class="lp-sidebar-title">
 					<?php esc_html_e( 'Translation Editor', 'langpress' ); ?>
 				</span>
-				<button class="lp-sidebar-save-top" id="lp-editor-save-top" type="button">
-					<?php esc_html_e( 'Save', 'langpress' ); ?>
-				</button>
-			</div>
-
-			<div class="lp-sidebar-tabs" role="tablist">
-				<button class="lp-sidebar-tab lp-sidebar-tab--active" type="button"
-						role="tab" aria-selected="true">
-					<?php esc_html_e( 'Translation Editor', 'langpress' ); ?>
-				</button>
-				<button class="lp-sidebar-tab" type="button"
-						role="tab" aria-selected="false">
-					<?php esc_html_e( 'String Translation', 'langpress' ); ?>
-				</button>
 			</div>
 
 			<div class="lp-sidebar-body">
@@ -111,6 +97,9 @@ class LP_Frontend {
 					<span class="lp-sidebar-lang-pill">
 						<?php echo esc_html( $def_meta['flag'] . ' ' . $def_meta['native'] ); ?>
 					</span>
+					<a class="lp-sidebar-admin-link" href="<?php echo esc_url( admin_url( 'admin.php?page=lp-translations' ) ); ?>" target="_blank">
+						<?php esc_html_e( 'Manage strings ↗', 'langpress' ); ?>
+					</a>
 				</div>
 
 				<div class="lp-sidebar-hint" id="lp-editor-hint">

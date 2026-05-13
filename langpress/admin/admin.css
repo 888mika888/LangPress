@@ -392,6 +392,109 @@
     cursor: pointer;
 }
 
+/* =========================================================
+   Dark Mode
+   ========================================================= */
+
+.lp-dark-mode .lp-card {
+    background: #2c3338;
+    border-color: #3c434a;
+    color: #f0f0f1;
+}
+
+.lp-dark-mode .lp-card h2 {
+    color: #f0f0f1;
+    border-bottom-color: #3c434a;
+}
+
+.lp-dark-mode .lp-tab {
+    background: #2c3338;
+    color: #c3c4c7;
+    border-color: #3c434a;
+}
+
+.lp-dark-mode .lp-tab:hover {
+    background: #3c434a;
+    color: #e0e0e0;
+}
+
+.lp-dark-mode .lp-tab--active {
+    background: #1d2327;
+    color: #72aee6;
+    border-color: #3c434a;
+    border-bottom-color: #1d2327;
+}
+
+.lp-dark-mode .lp-tab-nav {
+    border-bottom-color: #3c434a;
+}
+
+.lp-dark-mode .lp-lang-card {
+    background: #2c3338;
+    border-color: #3c434a;
+}
+
+.lp-dark-mode .lp-lang-name,
+.lp-dark-mode .lp-lang-native {
+    color: #c3c4c7;
+}
+
+.lp-dark-mode .lp-lang-card--active {
+    background: #1a3a4a;
+    border-color: #72aee6;
+}
+
+.lp-dark-mode input[type="text"],
+.lp-dark-mode input[type="number"],
+.lp-dark-mode input[type="search"],
+.lp-dark-mode input[type="color"],
+.lp-dark-mode textarea,
+.lp-dark-mode select {
+    background: #3c434a !important;
+    color: #f0f0f1 !important;
+    border-color: #50575e !important;
+}
+
+.lp-dark-mode .lp-page-list {
+    background: #3c434a;
+    border-color: #50575e;
+}
+
+.lp-dark-mode .lp-shortcode-info {
+    background: #2c3338;
+    color: #c3c4c7;
+}
+
+.lp-dark-mode .lp-status-table td {
+    color: #c3c4c7;
+    border-bottom-color: #3c434a;
+}
+
+.lp-dark-mode .lp-status-table tr:last-child td {
+    border-bottom: none;
+}
+
+.lp-dark-mode .lp-translations-header,
+.lp-dark-mode .wp-list-table th,
+.lp-dark-mode .wp-list-table td {
+    color: #c3c4c7;
+    border-bottom-color: #3c434a;
+}
+
+.lp-dark-mode .lp-original-text {
+    color: #f0f0f1;
+}
+
+.lp-dark-mode .lp-source-url small {
+    color: #8c8f94;
+}
+
+.lp-dark-mode .lp-sidebar-message--loading {
+    background: #1a3a4a;
+    color: #72aee6;
+    border-color: #2a5a7a;
+}
+
 /* ---------- Design-Vorschau ---------- */
 .lp-preview-card {
     grid-column: 1 / -1;

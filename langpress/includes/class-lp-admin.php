@@ -22,7 +22,8 @@ class LP_Admin {
 		add_action( 'wp_ajax_lp_get_translation',        [ $this, 'ajax_get_translation' ] );
 		add_action( 'wp_ajax_lp_get_page_translations',  [ $this, 'ajax_get_page_translations' ] );
 		add_filter( 'plugin_action_links_' . LP_PLUGIN_BASENAME, [ $this, 'plugin_action_links' ] );
-		add_action( 'admin_notices',                      [ $this, 'notice_caching_plugin' ] );
+		add_action( 'admin_notices',  [ $this, 'notice_caching_plugin' ] );
+		add_filter( 'admin_body_class', [ $this, 'maybe_add_dark_class' ] );
 	}
 
 	public static function instance(): self {
@@ -30,6 +31,23 @@ class LP_Admin {
 			self::$instance = new self();
 		}
 		return self::$instance;
+	}
+
+	// -------------------------------------------------------------------------
+	// Dark mode
+	// -------------------------------------------------------------------------
+
+	public function maybe_add_dark_class( string $classes ): string {
+		if ( ! get_option( 'lp_dark_mode', 0 ) ) {
+			return $classes;
+		}
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$page    = sanitize_key( $_GET['page'] ?? '' );
+		$lp_pages = [ 'lp-settings', 'lp-languages', 'lp-translations', 'lp-design', 'lp-import-export', 'lp-debug' ];
+		if ( in_array( $page, $lp_pages, true ) ) {
+			$classes .= ' lp-dark-mode';
+		}
+		return $classes;
 	}
 
 	// -------------------------------------------------------------------------
@@ -213,6 +231,7 @@ class LP_Admin {
 		update_option( 'lp_switcher_position', $position );
 		update_option( 'lp_switcher_pages',    $pages );
 		update_option( 'lp_position_fixed',    isset( $_POST['lp_position_fixed'] ) ? 1 : 0 );
+		update_option( 'lp_dark_mode',         isset( $_POST['lp_dark_mode'] ) ? 1 : 0 );
 
 		add_settings_error( 'lp', 'lp_saved', __( 'Einstellungen gespeichert.', 'langpress' ), 'success' );
 	}
@@ -654,6 +673,15 @@ class LP_Admin {
 								<label>
 									<input type="checkbox" name="lp_position_fixed" value="1" <?php checked( $fixed ); ?>>
 									<?php esc_html_e( 'Switcher fest am Bildschirmrand fixieren (position: fixed)', 'langpress' ); ?>
+								</label>
+							</td>
+						</tr>
+						<tr>
+							<th><?php esc_html_e( 'Dark Mode', 'langpress' ); ?></th>
+							<td>
+								<label>
+									<input type="checkbox" name="lp_dark_mode" value="1" <?php checked( (bool) get_option( 'lp_dark_mode', 0 ) ); ?>>
+									<?php esc_html_e( 'Enable dark mode for the LangPress admin UI', 'langpress' ); ?>
 								</label>
 							</td>
 						</tr>

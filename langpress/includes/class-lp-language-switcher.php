@@ -221,7 +221,9 @@ class LP_Language_Switcher {
 					 . sanitize_text_field( wp_unslash( $_SERVER['HTTP_HOST'] ?? '' ) )
 					 . sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ?? '/' ) );
 
-		$url = remove_query_arg( 'lp_lang', $current_url );
+		// Also strip lp_translation_editor so switching language in editor mode
+		// exits editor mode and shows the translated page (where translations apply).
+		$url = remove_query_arg( [ 'lp_lang', 'lp_translation_editor' ], $current_url );
 		return add_query_arg( 'lp_lang', $lang_code, $url );
 	}
 

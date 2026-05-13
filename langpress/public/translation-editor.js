@@ -27,50 +27,7 @@
         document.getElementById( 'lp-editor-close' )
             ?.addEventListener( 'click', () => { window.location.href = cfg.closeUrl; } );
 
-        document.getElementById( 'lp-editor-save-top' )?.addEventListener( 'click', doSave );
         document.getElementById( 'lp-editor-save' )?.addEventListener( 'click', doSave );
-
-        document.querySelectorAll( '.lp-sidebar-tab' ).forEach( function ( tab, index ) {
-            tab.addEventListener( 'click', function () {
-                document.querySelectorAll( '.lp-sidebar-tab' ).forEach( function ( t ) {
-                    t.classList.remove( 'lp-sidebar-tab--active' );
-                    t.setAttribute( 'aria-selected', 'false' );
-                } );
-                tab.classList.add( 'lp-sidebar-tab--active' );
-                tab.setAttribute( 'aria-selected', 'true' );
-
-                const body = document.querySelector( '.lp-sidebar-body' );
-                if ( ! body ) return;
-
-                if ( index === 1 ) {
-                    // String Translation tab: hide editor fields and show an info panel.
-                    showFields( false );
-                    document.getElementById( 'lp-editor-hint' ).style.display = 'none';
-
-                    let panel = document.getElementById( 'lp-string-panel' );
-                    if ( ! panel ) {
-                        panel = document.createElement( 'div' );
-                        panel.id        = 'lp-string-panel';
-                        panel.className = 'lp-string-panel';
-                        panel.innerHTML =
-                            '<p class="lp-string-panel__title">String Translation</p>'
-                          + '<p class="lp-string-panel__text">Manage all detected strings in the WordPress admin. '
-                          + 'Strings are collected automatically as pages are visited in the default language.</p>'
-                          + '<a class="lp-string-panel__link" href="' + cfg.adminUrl + '" target="_blank">Open Translations Table ↗</a>';
-                        body.appendChild( panel );
-                    }
-                    panel.style.display = 'flex';
-                } else {
-                    const panel = document.getElementById( 'lp-string-panel' );
-                    if ( panel ) panel.style.display = 'none';
-
-                    const hint = document.getElementById( 'lp-editor-hint' );
-                    if ( hint ) hint.style.display = selectedEl ? 'none' : 'block';
-
-                    if ( selectedEl ) showFields( true );
-                }
-            } );
-        } );
     }
 
     function scanAndMarkElements() {
@@ -261,7 +218,7 @@
     }
 
     function setSaving( saving ) {
-        [ 'lp-editor-save', 'lp-editor-save-top' ].forEach( function ( id ) {
+        [ 'lp-editor-save' ].forEach( function ( id ) {
             const btn = document.getElementById( id );
             if ( ! btn ) return;
             btn.disabled    = saving;

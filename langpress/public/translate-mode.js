@@ -9,6 +9,7 @@
     function buildFAB() {
         const url = new URL( window.location.href );
         url.searchParams.set( 'lp_translation_editor', '1' );
+        url.searchParams.delete( 'lp_lang' ); // always show original (default-lang) content in editor
 
         const fab = document.createElement( 'a' );
         fab.id   = 'lp-fab';

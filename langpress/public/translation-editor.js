@@ -4,7 +4,12 @@
 
     if ( typeof LP_Editor === 'undefined' ) return;
 
-    const cfg = LP_Editor;
+    const cfg   = LP_Editor;
+    const DEBUG = new URLSearchParams( window.location.search ).has( 'lp_debug' );
+
+    function dbg( ...args ) {
+        if ( DEBUG && window.console ) console.log( '[LangPress]', ...args );
+    }
 
     const SKIP_TAGS = new Set( [
         'script', 'style', 'noscript', 'code', 'pre',
@@ -12,34 +17,20 @@
         'select', 'option', 'meta', 'link', 'head', 'br', 'hr',
     ] );
 
-    // Block-level and semantic elements that hold translatable text.
-    // Inline elements (strong, em…) are included so standalone ones get pencils,
-    // but shouldSkip() rejects them when a .lp-translatable ancestor already
-    // covers their text — preventing duplicate pencils and wrong-text confusion.
-    // Content-area divs are included to catch Impressum address blocks and other
-    // text that lives directly inside a <div> without being wrapped in <p>.
-    const BLOCK_SELECTORS = [
-        'h1, h2, h3, h4, h5, h6',
-        'p',
-        'li',
-        'a',
-        'button',
-        'label',
-        'td, th',
-        'figcaption',
-        'blockquote',
-        'dt, dd',
-        'strong, b, em',
-        '.wp-block-button__link',
-        // Divs directly inside known content areas (e.g. Impressum address blocks)
-        '.entry-content div',
-        'article div',
-        '.wp-block-column > div',
-        '.wp-block-group__inner-container > div',
-    ].join( ', ' );
+    // Semantic block-level elements — always leaf text containers.
+    // Read with getCleanText (full innerText including inline children).
+    const SEMANTIC_SEL = 'h1, h2, h3, h4, h5, h6, p, li, blockquote, figcaption, dt, dd, td, th, .wp-block-button__link';
+
+    // Inline / interactive elements — only get pencils when NOT already
+    // inside a .lp-translatable ancestor.
+    const INLINE_SEL = 'a, button, label, strong, b, em';
 
     let selectedEl   = null;
     let selectedText = '';
+
+    // -------------------------------------------------------------------------
+    // Boot
+    // -------------------------------------------------------------------------
 
     document.addEventListener( 'DOMContentLoaded', function () {
         document.body.classList.add( 'lp-editor-active' );
@@ -47,52 +38,59 @@
         scanAndMarkElements();
     } );
 
-    function wireSidebarEvents() {
-        document.getElementById( 'lp-editor-close' )
-            ?.addEventListener( 'click', () => { window.location.href = cfg.closeUrl; } );
-        document.getElementById( 'lp-editor-save' )?.addEventListener( 'click', doSave );
-    }
+    // -------------------------------------------------------------------------
+    // Three-pass scan
+    //
+    // Pass 1 — Semantic block elements (h1-h6, p, li, …)
+    //   These are always individual text units. Use full innerText.
+    //
+    // Pass 2 — Inline elements (a, button, strong, …)
+    //   Skip if already covered by a .lp-translatable ancestor from pass 1.
+    //
+    // Pass 3 — Divs with DIRECT text nodes only
+    //   A div is only a translation unit when it has its own text content
+    //   (not just child elements). getDirectText reads only TEXT_NODEs,
+    //   never descendant element text — so container wrappers are never
+    //   captured as one big text block.
+    // -------------------------------------------------------------------------
 
     function scanAndMarkElements() {
-        document.querySelectorAll( BLOCK_SELECTORS ).forEach( function ( el ) {
+        let count = 0;
+
+        // Pass 1: semantic block elements.
+        document.querySelectorAll( SEMANTIC_SEL ).forEach( function ( el ) {
             if ( shouldSkip( el ) ) return;
-
             const text = getCleanText( el );
-            if ( ! text || text.length < 2 || ! /\p{L}/u.test( text ) ) return;
-
-            // Store original text directly on the element so every click reads
-            // from the exact block that owns the pencil — no closure aliasing.
-            el.dataset.lpOriginalText = text;
-            el.classList.add( 'lp-translatable' );
-
-            const pencil = document.createElement( 'button' );
-            pencil.className = 'lp-pencil';
-            pencil.type      = 'button';
-            pencil.innerHTML = '&#9998;';
-            pencil.title     = 'Translate';
-            pencil.setAttribute( 'translate', 'no' );
-            pencil.setAttribute( 'aria-label', 'Translate this text' );
-
-            // Pencil click: walk up to the owning .lp-translatable and read its text.
-            pencil.addEventListener( 'click', function ( e ) {
-                e.preventDefault();
-                e.stopPropagation();
-                const owner = e.currentTarget.closest( '.lp-translatable' );
-                if ( owner ) selectElement( owner, owner.dataset.lpOriginalText );
-            } );
-
-            // Element click: use currentTarget (always the element the listener
-            // is on) so clicking anywhere inside the block selects this block.
-            el.addEventListener( 'click', function ( e ) {
-                if ( e.target.classList.contains( 'lp-pencil' ) ) return;
-                if ( e.target.closest( '#lp-editor-sidebar' ) ) return;
-                e.stopPropagation();
-                selectElement( e.currentTarget, e.currentTarget.dataset.lpOriginalText );
-            } );
-
-            el.appendChild( pencil );
+            if ( ! isValidText( text ) ) return;
+            markElement( el, text );
+            count++;
         } );
+
+        // Pass 2: inline elements — only standalone ones (not inside a block).
+        document.querySelectorAll( INLINE_SEL ).forEach( function ( el ) {
+            if ( shouldSkip( el ) ) return;
+            const text = getCleanText( el );
+            if ( ! isValidText( text ) ) return;
+            markElement( el, text );
+            count++;
+        } );
+
+        // Pass 3: divs with direct text (e.g. Impressum address blocks).
+        // We never use innerText here — only TEXT_NODE children of the div.
+        document.querySelectorAll( 'div' ).forEach( function ( el ) {
+            if ( shouldSkip( el ) ) return;
+            const text = getDirectText( el );
+            if ( ! isValidText( text ) ) return;
+            markElement( el, text );
+            count++;
+        } );
+
+        dbg( 'Scan complete. Blocks marked:', count );
     }
+
+    // -------------------------------------------------------------------------
+    // shouldSkip — shared by all three passes
+    // -------------------------------------------------------------------------
 
     function shouldSkip( el ) {
         if ( el.closest( '#lp-editor-sidebar' ) ) return true;
@@ -101,25 +99,94 @@
         if ( el.closest( '[translate="no"]' ) )    return true;
         if ( SKIP_TAGS.has( el.tagName.toLowerCase() ) ) return true;
 
+        // Already processed in an earlier pass.
+        if ( el.dataset.lpProcessed === '1' ) return true;
+
         const style = window.getComputedStyle( el );
         if ( style.display === 'none' || style.visibility === 'hidden' ) return true;
 
-        // A translatable ancestor already covers this element's text.
-        // Marking it again would create a second pencil that shows a
-        // different (shorter) text — the root cause of the wrong-text bug.
+        // A .lp-translatable ancestor already owns this element's text.
+        // Skipping prevents double pencils and wrong-text-in-sidebar issues.
         if ( el.closest( '.lp-translatable' ) ) return true;
 
-        // Has block-level children — those children will get their own pencils.
+        // Has block-level children — each child will get its own pencil.
+        // This stops li>p, blockquote>p, etc. from being captured as one blob.
         if ( el.querySelector( 'h1,h2,h3,h4,h5,h6,p,li,blockquote,dt,dd,td,th,figcaption' ) ) return true;
 
         return false;
     }
 
+    // -------------------------------------------------------------------------
+    // markElement — attach pencil with a direct element reference
+    // -------------------------------------------------------------------------
+
+    function markElement( el, text ) {
+        el.dataset.lpProcessed    = '1';
+        el.dataset.lpOriginalText = text;
+        el.classList.add( 'lp-translatable' );
+
+        const pencil = document.createElement( 'button' );
+        pencil.className = 'lp-pencil';
+        pencil.type      = 'button';
+        pencil.innerHTML = '&#9998;';
+        pencil.title     = 'Translate';
+        pencil.setAttribute( 'translate', 'no' );
+        pencil.setAttribute( 'aria-label', 'Translate this text' );
+
+        // Direct closure reference to `el` — no querySelector, no hash lookup.
+        pencil.addEventListener( 'click', function ( e ) {
+            e.preventDefault();
+            e.stopPropagation();
+            selectElement( el, el.dataset.lpOriginalText );
+        } );
+
+        el.addEventListener( 'click', function ( e ) {
+            if ( e.target.classList.contains( 'lp-pencil' ) ) return;
+            if ( e.target.closest( '#lp-editor-sidebar' ) ) return;
+            e.stopPropagation();
+            selectElement( e.currentTarget, e.currentTarget.dataset.lpOriginalText );
+        } );
+
+        el.appendChild( pencil );
+
+        dbg( 'Marked', el.tagName, '|', text.substring( 0, 60 ) );
+    }
+
+    // -------------------------------------------------------------------------
+    // Text helpers
+    // -------------------------------------------------------------------------
+
+    // Full visible text of an element including all inline children.
+    // Used for semantic block elements (p, h1-h6, li, …).
     function getCleanText( el ) {
         const clone = el.cloneNode( true );
         clone.querySelectorAll( '.lp-pencil' ).forEach( b => b.remove() );
-        return ( clone.innerText || clone.textContent || '' ).trim().replace( /\s+/g, ' ' );
+        return normalizeText( clone.innerText || clone.textContent || '' );
     }
+
+    // Only direct TEXT_NODE children — ignores all descendant element text.
+    // Used for div elements so container wrappers never capture combined text.
+    function getDirectText( el ) {
+        let text = '';
+        el.childNodes.forEach( function ( node ) {
+            if ( node.nodeType === Node.TEXT_NODE ) {
+                text += node.textContent;
+            }
+        } );
+        return normalizeText( text );
+    }
+
+    function normalizeText( text ) {
+        return ( text || '' ).trim().replace( /\s+/g, ' ' );
+    }
+
+    function isValidText( text ) {
+        return !! text && text.length >= 2 && /\p{L}/u.test( text );
+    }
+
+    // -------------------------------------------------------------------------
+    // Selection
+    // -------------------------------------------------------------------------
 
     function selectElement( el, text ) {
         if ( ! el || ! text ) return;
@@ -142,10 +209,22 @@
         clearMsg();
         fetchTranslations( text );
 
+        dbg( 'Selected', el.tagName, '|', text.substring( 0, 80 ) );
+
         setTimeout( function () {
             const firstLang = ( cfg.targetLangs || [] )[ 0 ];
             if ( firstLang ) document.getElementById( 'lp-editor-' + firstLang )?.focus();
         }, 80 );
+    }
+
+    // -------------------------------------------------------------------------
+    // Sidebar wiring
+    // -------------------------------------------------------------------------
+
+    function wireSidebarEvents() {
+        document.getElementById( 'lp-editor-close' )
+            ?.addEventListener( 'click', () => { window.location.href = cfg.closeUrl; } );
+        document.getElementById( 'lp-editor-save' )?.addEventListener( 'click', doSave );
     }
 
     function showFields( show ) {
@@ -153,7 +232,7 @@
         const hint   = document.getElementById( 'lp-editor-hint' );
         const footer = document.getElementById( 'lp-editor-footer' );
         if ( fields ) fields.style.display = show ? 'flex' : 'none';
-        if ( hint   ) hint.style.display   = show ? 'none' : 'block';
+        if ( hint )   hint.style.display   = show ? 'none' : 'block';
         if ( footer ) footer.style.display = show ? 'block' : 'none';
     }
 
@@ -168,6 +247,10 @@
         msg.textContent = text;
         msg.className   = 'lp-sidebar-message lp-sidebar-message--' + type + ' lp-sidebar-message--visible';
     }
+
+    // -------------------------------------------------------------------------
+    // AJAX
+    // -------------------------------------------------------------------------
 
     function fetchTranslations( originalText ) {
         showMsg( 'Loading…', 'loading' );
@@ -187,15 +270,14 @@
                 clearMsg();
                 if ( ! res.success ) return;
                 const t = res.data.translations || {};
+                dbg( 'Translations loaded:', t );
                 ( cfg.targetLangs || [] ).forEach( function ( lang ) {
                     const f = document.getElementById( 'lp-editor-' + lang );
                     if ( f ) f.value = t[ lang ] || '';
                 } );
             } )
             .catch( function ( err ) {
-                if ( window.console ) {
-                    console.warn( 'LangPress: could not load existing translations.', err );
-                }
+                if ( window.console ) console.warn( 'LangPress: could not load translations.', err );
                 clearMsg();
             } );
     }
@@ -229,6 +311,9 @@
             fd.append( 'translated', val );
             fd.append( 'status',     'active' );
             if ( cfg.postId ) fd.append( 'post_id', cfg.postId );
+
+            dbg( 'Saving lang:', lang, '|', selectedText.substring( 0, 60 ), '->', val.substring( 0, 60 ) );
+
             return fetch( cfg.ajaxUrl, { method: 'POST', body: fd, credentials: 'same-origin' } )
                 .then( function ( r ) {
                     if ( ! r.ok ) throw new Error( 'HTTP ' + r.status );

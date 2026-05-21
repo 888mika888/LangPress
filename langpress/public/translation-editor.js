@@ -57,6 +57,15 @@
     function scanAndMarkElements() {
         let count = 0;
 
+        // Pre-pass: split elements whose content is separated by <br> tags into
+        // individual inline-block spans so each line becomes its own translation
+        // unit. Must run before other passes so the spans get marked instead of
+        // the parent being captured as one combined block.
+        document.querySelectorAll( 'p, li, div, blockquote, td, th' ).forEach( function ( el ) {
+            if ( shouldSkip( el ) ) return;
+            splitAtBRs( el );
+        } );
+
         // Pass 1: semantic block elements.
         document.querySelectorAll( SEMANTIC_SEL ).forEach( function ( el ) {
             if ( shouldSkip( el ) ) return;
@@ -76,7 +85,6 @@
         } );
 
         // Pass 3: divs with direct text (e.g. Impressum address blocks).
-        // We never use innerText here — only TEXT_NODE children of the div.
         document.querySelectorAll( 'div' ).forEach( function ( el ) {
             if ( shouldSkip( el ) ) return;
             const text = getDirectText( el );
@@ -86,6 +94,67 @@
         } );
 
         dbg( 'Scan complete. Blocks marked:', count );
+    }
+
+    // Split an element whose lines are separated by <br> tags into individual
+    // inline-block spans, each becoming its own translation unit.
+    function splitAtBRs( el ) {
+        // querySelector searches all descendants — we only want direct <br> children
+        let hasBR = false;
+        el.childNodes.forEach( function ( n ) {
+            if ( n.nodeName.toLowerCase() === 'br' ) hasBR = true;
+        } );
+        if ( ! hasBR ) return;
+
+        // Snapshot child nodes before any DOM changes (NodeList is live)
+        const children = Array.from( el.childNodes );
+
+        // Group nodes between direct <br> tags
+        const groups = [];
+        let current = [];
+        children.forEach( function ( node ) {
+            if ( node.nodeName.toLowerCase() === 'br' ) {
+                groups.push( current );
+                current = [];
+            } else {
+                current.push( node );
+            }
+        } );
+        groups.push( current );
+
+        // Keep only groups with meaningful text
+        const valid = groups.filter( function ( nodes ) {
+            const t = nodes.map( function ( n ) { return n.textContent || ''; } )
+                          .join( '' ).trim();
+            return isValidText( t );
+        } );
+
+        // Only split when there are 2 or more real segments
+        if ( valid.length < 2 ) return;
+
+        // Mark the parent as processed so later passes don't re-capture it
+        el.dataset.lpProcessed = '1';
+
+        // Rebuild: clear element, re-insert as <span> segments separated by <br>
+        while ( el.firstChild ) el.removeChild( el.firstChild );
+
+        valid.forEach( function ( nodes, idx ) {
+            const span = document.createElement( 'span' );
+            span.className = 'lp-br-segment';
+            nodes.forEach( function ( node ) { span.appendChild( node ); } );
+            el.appendChild( span );
+            if ( idx < valid.length - 1 ) {
+                el.appendChild( document.createElement( 'br' ) );
+            }
+        } );
+
+        // Mark each segment individually
+        el.querySelectorAll( '.lp-br-segment' ).forEach( function ( span ) {
+            const text = normalizeText( span.innerText || span.textContent || '' );
+            if ( ! isValidText( text ) ) return;
+            markElement( span, text );
+            dbg( 'BR-split segment:', text.substring( 0, 60 ) );
+        } );
     }
 
     // -------------------------------------------------------------------------

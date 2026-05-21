@@ -262,26 +262,23 @@ body.lp-editor-active #wpadminbar {
 .lp-translatable:hover {
     outline: 2px solid rgba(0, 115, 170, .5) !important;
     outline-offset: 2px !important;
-    background-color: rgba(0, 115, 170, .03) !important;
 }
 
 /* Selected element */
 .lp-element-selected {
     outline: 2px solid #0073aa !important;
     outline-offset: 2px !important;
-    background-color: rgba(0, 115, 170, .06) !important;
 }
 
 /* Post-save success flash */
 @keyframes lp-saved-flash {
-    0%   { outline-color: #00a32a; background-color: rgba(0,163,42,.1); }
-    70%  { outline-color: #00a32a; background-color: rgba(0,163,42,.06); }
-    100% { outline-color: #0073aa; background-color: rgba(0,115,170,.06); }
+    0%   { outline-color: #00a32a; }
+    70%  { outline-color: #00a32a; }
+    100% { outline-color: #0073aa; }
 }
 .lp-element-saved {
     outline: 2px solid #00a32a !important;
     outline-offset: 2px !important;
-    background-color: rgba(0, 163, 42, .08) !important;
     animation: lp-saved-flash 1.2s ease forwards !important;
 }
 

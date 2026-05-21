@@ -59,6 +59,7 @@
 
             el.addEventListener( 'click', function ( e ) {
                 if ( e.target === pencil || e.target.closest( '#lp-editor-sidebar' ) ) return;
+                e.stopPropagation();
                 selectElement( el, capturedText );
             } );
 
@@ -75,6 +76,10 @@
 
         const style = window.getComputedStyle( el );
         if ( style.display === 'none' || style.visibility === 'hidden' ) return true;
+
+        // Skip if this element contains block-level children that will get their own
+        // pencil icons — capturing the parent would merge all their text into one entry.
+        if ( el.querySelector( 'h1,h2,h3,h4,h5,h6,p,li,blockquote,dt,dd,td,th,figcaption' ) ) return true;
 
         return false;
     }

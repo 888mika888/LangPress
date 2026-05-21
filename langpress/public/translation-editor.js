@@ -93,10 +93,18 @@
     // -------------------------------------------------------------------------
 
     function shouldSkip( el ) {
+        // Exclude our own plugin UI containers first.
         if ( el.closest( '#lp-editor-sidebar' ) ) return true;
         if ( el.closest( '#wpadminbar' ) )         return true;
         if ( el.closest( '.lp-switcher' ) )        return true;
-        if ( el.closest( '[translate="no"]' ) )    return true;
+        if ( el.closest( '#lp-fab' ) )             return true;
+
+        // Skip only if THIS element itself is marked translate="no".
+        // Do NOT use closest() here — themes often put translate="no" on entire
+        // content wrappers to block browser auto-translate, which would incorrectly
+        // skip every text block on the page.
+        if ( el.getAttribute( 'translate' ) === 'no' ) return true;
+
         if ( SKIP_TAGS.has( el.tagName.toLowerCase() ) ) return true;
 
         // Already processed in an earlier pass.

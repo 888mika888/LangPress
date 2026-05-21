@@ -163,7 +163,7 @@ class LP_Admin {
 				'saveBtn'         => __( 'Speichern', 'langpress' ),
 				'error'           => __( 'Fehler beim Speichern.', 'langpress' ),
 				'confirm'         => __( 'Wirklich löschen?', 'langpress' ),
-				'deleted'         => __( 'Deleted.', 'langpress' ),
+				'deleted'         => __( 'Gelöscht.', 'langpress' ),
 				'reinstallConfirm'=> __( 'Reinstall database tables? Existing data will be kept (dbDelta).', 'langpress' ),
 				'active'          => __( 'Aktiv', 'langpress' ),
 				'pending'         => __( 'Ausstehend', 'langpress' ),

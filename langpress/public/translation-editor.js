@@ -28,6 +28,9 @@
     let selectedEl   = null;
     let selectedText = '';
 
+    // In-memory cache so clicking the same element twice doesn't fire a second AJAX call.
+    const fetchCache = new Map();
+
     // -------------------------------------------------------------------------
     // Boot
     // -------------------------------------------------------------------------
@@ -394,7 +397,22 @@
     // AJAX
     // -------------------------------------------------------------------------
 
+    function applyTranslations( t ) {
+        ( cfg.targetLangs || [] ).forEach( function ( lang ) {
+            const f = document.getElementById( 'lp-editor-' + lang );
+            if ( f ) f.value = t[ lang ] || '';
+        } );
+    }
+
     function fetchTranslations( originalText ) {
+        // Serve from cache if this text was already fetched in this session.
+        if ( fetchCache.has( originalText ) ) {
+            clearMsg();
+            applyTranslations( fetchCache.get( originalText ) );
+            dbg( 'Translations from cache:', originalText.substring( 0, 60 ) );
+            return;
+        }
+
         showMsg( 'Loading…', 'loading' );
 
         const fd = new FormData();
@@ -412,11 +430,9 @@
                 clearMsg();
                 if ( ! res.success ) return;
                 const t = res.data.translations || {};
+                fetchCache.set( originalText, t );
                 dbg( 'Translations loaded:', t );
-                ( cfg.targetLangs || [] ).forEach( function ( lang ) {
-                    const f = document.getElementById( 'lp-editor-' + lang );
-                    if ( f ) f.value = t[ lang ] || '';
-                } );
+                applyTranslations( t );
             } )
             .catch( function ( err ) {
                 if ( window.console ) console.warn( 'LangPress: could not load translations.', err );
@@ -466,6 +482,8 @@
             .then( function ( res ) {
                 setSaving( false );
                 if ( res.success ) {
+                    // Bust the fetch cache so re-clicking this element shows the new translation.
+                    fetchCache.delete( selectedText );
                     showMsg( '✓ Saved!', 'success' );
                     if ( selectedEl ) {
                         selectedEl.classList.add( 'lp-element-saved' );

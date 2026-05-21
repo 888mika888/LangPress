@@ -57,13 +57,20 @@
     function scanAndMarkElements() {
         let count = 0;
 
-        // Pre-pass: split elements whose content is separated by <br> tags into
-        // individual inline-block spans so each line becomes its own translation
-        // unit. Must run before other passes so the spans get marked instead of
-        // the parent being captured as one combined block.
+        // Pre-pass A: split <br>-separated lines into individual spans.
         document.querySelectorAll( 'p, li, div, blockquote, td, th' ).forEach( function ( el ) {
+            if ( el.dataset.lpProcessed === '1' ) return;
             if ( shouldSkip( el ) ) return;
             splitAtBRs( el );
+        } );
+
+        // Pre-pass B: split elements that mix bold/inline children with bare text nodes.
+        // E.g. <p><strong>E-Mail:</strong> kontakt@herz2herz.org</p> becomes two
+        // separate nodes so each can be translated and applied independently.
+        document.querySelectorAll( 'p, li, h1, h2, h3, h4, h5, h6, blockquote, dt, dd, td, th' ).forEach( function ( el ) {
+            if ( el.dataset.lpProcessed === '1' ) return;
+            if ( shouldSkip( el ) ) return;
+            if ( tryMixedSplit( el ) ) el.dataset.lpProcessed = '1';
         } );
 
         // Pass 1: semantic block elements.
@@ -148,8 +155,12 @@
             }
         } );
 
-        // Mark each segment individually
+        // Mark each segment — apply mixed-split first if segment has bold+text.
         el.querySelectorAll( '.lp-br-segment' ).forEach( function ( span ) {
+            if ( tryMixedSplit( span ) ) {
+                span.dataset.lpProcessed = '1';
+                return;
+            }
             const text = normalizeText( span.innerText || span.textContent || '' );
             if ( ! isValidText( text ) ) return;
             markElement( span, text );
@@ -157,8 +168,59 @@
         } );
     }
 
+    // Split an element that contains BOTH inline elements (strong, em, a…) AND bare
+    // text nodes — e.g. <p><strong>E-Mail:</strong> kontakt@herz2herz.org</p>.
+    // Wraps each bare text node in <span class="lp-text-segment"> and marks every
+    // direct child element as its own translation unit.
+    // Returns true when at least one child was marked.
+    function tryMixedSplit( el ) {
+        const children = Array.from( el.childNodes );
+
+        let hasBareText   = false;
+        let hasInlineElem = false;
+
+        children.forEach( function ( node ) {
+            if ( node.nodeType === Node.TEXT_NODE && node.textContent.trim() ) {
+                hasBareText = true;
+            } else if ( node.nodeType === Node.ELEMENT_NODE ) {
+                const tag = node.tagName.toLowerCase();
+                if ( tag !== 'br' && ! SKIP_TAGS.has( tag ) ) {
+                    hasInlineElem = true;
+                }
+            }
+        } );
+
+        if ( ! hasBareText || ! hasInlineElem ) return false;
+
+        // Wrap each non-empty bare text node in a span so it can receive a pencil.
+        Array.from( el.childNodes ).forEach( function ( node ) {
+            if ( node.nodeType !== Node.TEXT_NODE ) return;
+            if ( ! node.textContent.trim() ) return;
+            const span = document.createElement( 'span' );
+            span.className = 'lp-text-segment';
+            el.insertBefore( span, node );
+            span.appendChild( node );
+        } );
+
+        // Mark every direct child element individually.
+        let marked = 0;
+        Array.from( el.children ).forEach( function ( child ) {
+            const tag = child.tagName.toLowerCase();
+            if ( tag === 'br' ) return;
+            if ( SKIP_TAGS.has( tag ) ) return;
+            if ( child.dataset.lpProcessed === '1' ) return;
+            const text = normalizeText( child.innerText || child.textContent || '' );
+            if ( ! isValidText( text ) ) return;
+            markElement( child, text );
+            marked++;
+            dbg( 'Mixed-split:', tag, '|', text.substring( 0, 60 ) );
+        } );
+
+        return marked > 0;
+    }
+
     // -------------------------------------------------------------------------
-    // shouldSkip — shared by all three passes
+    // shouldSkip — shared by all passes
     // -------------------------------------------------------------------------
 
     function shouldSkip( el ) {

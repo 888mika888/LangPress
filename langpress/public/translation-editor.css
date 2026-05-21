@@ -276,6 +276,11 @@ body.lp-editor-active #wpadminbar {
     display: inline-block;
 }
 
+/* Segments created by splitting mixed bold+text content into individual nodes */
+.lp-text-segment {
+    display: inline-block;
+}
+
 .lp-translatable:hover {
     outline: 2px solid rgba(0, 115, 170, .5) !important;
     outline-offset: 2px !important;

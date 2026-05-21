@@ -98,7 +98,10 @@ body.lp-editor-active #wpadminbar {
     transition: opacity 0.12s, background 0.12s;
     flex-shrink: 0;
 }
-.lp-sidebar-close:hover { opacity: 1; background: rgba(255,255,255,.15); }
+.lp-sidebar-close:hover {
+    opacity: 1;
+    background: rgba(255,255,255,.15);
+}
 
 .lp-sidebar-title {
     font-size: 13px;
@@ -138,7 +141,11 @@ body.lp-editor-active #wpadminbar {
     flex-shrink: 0;
     opacity: .8;
 }
-.lp-sidebar-admin-link:hover { color: #1d2327; text-decoration: underline; opacity: 1; }
+.lp-sidebar-admin-link:hover {
+    color: #1d2327;
+    text-decoration: underline;
+    opacity: 1;
+}
 
 .lp-sidebar-lang-pill {
     display: inline-flex;
@@ -250,8 +257,13 @@ body.lp-editor-active #wpadminbar {
     cursor: pointer;
     transition: background 0.15s;
 }
-.lp-sidebar-save-btn:hover    { background: #005a87; }
-.lp-sidebar-save-btn:disabled { background: #a7aaad; cursor: not-allowed; }
+.lp-sidebar-save-btn:hover {
+    background: #005a87;
+}
+.lp-sidebar-save-btn:disabled {
+    background: #a7aaad;
+    cursor: not-allowed;
+}
 
 /* ---------- Translatable elements (pencil hover area) ---------- */
 .lp-translatable {

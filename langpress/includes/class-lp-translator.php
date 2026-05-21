@@ -183,18 +183,19 @@ class LP_Translator {
 				if ( $this->has_inline_children( $node ) ) {
 					// Block contains inline elements (strong, em, span…).
 					// Translate individual text nodes first so formatting is preserved.
-					// Only fall back to combined block replacement if no individual
+					// Fall back to combined block replacement only if no per-node
 					// translations exist (combined would flatten all tags to plain text).
 					if ( ! $this->translate_node_tree( $node ) ) {
 						$this->try_translate_block( $node );
 					}
-				} elseif ( ! $this->try_translate_block( $node ) ) {
-					// No inline children — combined translation is safe. If it fails,
-					// fall through to the per-child recursion below.
-				} else {
 					return;
 				}
-				return;
+
+				if ( $this->try_translate_block( $node ) ) {
+					return; // translated successfully as a combined block unit
+				}
+				// try_translate_block found no stored translation — fall through
+				// to per-child recursion so nested blocks still get translated.
 			}
 		}
 

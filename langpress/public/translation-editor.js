@@ -382,38 +382,35 @@
         setSaving( true );
         showMsg( 'Saving…', 'loading' );
 
-        const requests = Object.entries( translations ).map( function ( [ lang, val ] ) {
-            const fd = new FormData();
-            fd.append( 'action',     'lp_save_translation' );
-            fd.append( 'nonce',      cfg.nonce );
-            fd.append( 'original',   selectedText );
-            fd.append( 'lang',       lang );
-            fd.append( 'translated', val );
-            fd.append( 'status',     'active' );
-            if ( cfg.postId ) fd.append( 'post_id', cfg.postId );
+        // Send all languages in one request using the multi-language PHP path.
+        // PHP expects each language code as its own POST key (e.g. POST['en']).
+        const fd = new FormData();
+        fd.append( 'action',   'lp_save_translation' );
+        fd.append( 'nonce',    cfg.nonce );
+        fd.append( 'original', selectedText );
+        fd.append( 'status',   'active' );
+        if ( cfg.postId ) fd.append( 'post_id', cfg.postId );
 
-            dbg( 'Saving lang:', lang, '|', selectedText.substring( 0, 60 ), '->', val.substring( 0, 60 ) );
-
-            return fetch( cfg.ajaxUrl, { method: 'POST', body: fd, credentials: 'same-origin' } )
-                .then( function ( r ) {
-                    if ( ! r.ok ) throw new Error( 'HTTP ' + r.status );
-                    return r.json();
-                } );
+        Object.entries( translations ).forEach( function ( [ lang, val ] ) {
+            fd.append( lang, val );
+            dbg( 'Saving lang:', lang, '->', val.substring( 0, 60 ) );
         } );
 
-        Promise.all( requests )
-            .then( function ( results ) {
+        fetch( cfg.ajaxUrl, { method: 'POST', body: fd, credentials: 'same-origin' } )
+            .then( function ( r ) {
+                if ( ! r.ok ) throw new Error( 'HTTP ' + r.status );
+                return r.json();
+            } )
+            .then( function ( res ) {
                 setSaving( false );
-                const allOk = results.every( function ( r ) { return r.success; } );
-                if ( allOk ) {
+                if ( res.success ) {
                     showMsg( '✓ Saved!', 'success' );
                     if ( selectedEl ) {
                         selectedEl.classList.add( 'lp-element-saved' );
                         setTimeout( () => selectedEl?.classList.remove( 'lp-element-saved' ), 1200 );
                     }
                 } else {
-                    const failed = results.find( function ( r ) { return ! r.success; } );
-                    showMsg( failed?.data?.message || 'Error saving. Please try again.', 'error' );
+                    showMsg( res.data?.message || 'Error saving. Please try again.', 'error' );
                 }
             } )
             .catch( function () {

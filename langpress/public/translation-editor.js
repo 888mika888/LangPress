@@ -165,23 +165,26 @@
     // -------------------------------------------------------------------------
 
     // Full visible text of an element including all inline children.
-    // Used for semantic block elements (p, h1-h6, li, …).
+    // Uses the live element (attached to DOM) so innerText has proper layout —
+    // innerText on a detached clone returns "" in browsers, causing fallback to
+    // textContent which concatenates blocks without spaces ("Herz2Herzc/o…").
+    // Safe to call pre-pencil because markElement appends the pencil AFTER this.
     function getCleanText( el ) {
-        const clone = el.cloneNode( true );
-        clone.querySelectorAll( '.lp-pencil' ).forEach( b => b.remove() );
-        return normalizeText( clone.innerText || clone.textContent || '' );
+        return normalizeText( el.innerText || el.textContent || '' );
     }
 
     // Only direct TEXT_NODE children — ignores all descendant element text.
     // Used for div elements so container wrappers never capture combined text.
+    // Joins parts with a space so <br>-separated lines don't lose their gap.
     function getDirectText( el ) {
-        let text = '';
+        const parts = [];
         el.childNodes.forEach( function ( node ) {
             if ( node.nodeType === Node.TEXT_NODE ) {
-                text += node.textContent;
+                const t = node.textContent.trim();
+                if ( t ) parts.push( t );
             }
         } );
-        return normalizeText( text );
+        return normalizeText( parts.join( ' ' ) );
     }
 
     function normalizeText( text ) {

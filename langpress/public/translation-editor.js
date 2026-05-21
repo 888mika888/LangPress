@@ -23,7 +23,7 @@
 
     // Inline / interactive elements — only get pencils when NOT already
     // inside a .lp-translatable ancestor.
-    const INLINE_SEL = 'a, button, label, strong, b, em';
+    const INLINE_SEL = 'a, button, label, strong, b, em, span';
 
     let selectedEl   = null;
     let selectedText = '';

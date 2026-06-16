@@ -1,4 +1,4 @@
-# Claude Code local settings (tool permissions, not for version control)
+# Local tool settings (not for version control)
 .claude/
 
 # OS

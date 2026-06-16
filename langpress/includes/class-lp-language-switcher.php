@@ -224,6 +224,12 @@ class LP_Language_Switcher {
 		// Also strip lp_translation_editor so switching language in editor mode
 		// exits editor mode and shows the translated page (where translations apply).
 		$url = remove_query_arg( [ 'lp_lang', 'lp_translation_editor' ], $current_url );
+
+		// Default language always uses a clean URL without ?lp_lang=.
+		if ( $lang_code === get_option( 'lp_default_language', 'de' ) ) {
+			return $url;
+		}
+
 		return add_query_arg( 'lp_lang', $lang_code, $url );
 	}
 

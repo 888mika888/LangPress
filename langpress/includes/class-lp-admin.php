@@ -283,10 +283,14 @@ class LP_Admin {
 			update_option( $field, $val );
 		}
 
-		$num_fields = [ 'lp_border_radius', 'lp_font_size', 'lp_padding' ];
-		foreach ( $num_fields as $field ) {
+		$num_fields = [
+			'lp_border_radius' => [ 0, 50 ],
+			'lp_font_size'     => [ 8, 32 ],
+			'lp_padding'       => [ 0, 40 ],
+		];
+		foreach ( $num_fields as $field => [$min, $max] ) {
 			$val = absint( $_POST[ $field ] ?? 0 );
-			$val = max( 0, min( 100, $val ) );
+			$val = max( $min, min( $max, $val ) );
 			update_option( $field, (string) $val );
 		}
 
@@ -335,13 +339,15 @@ class LP_Admin {
 					? $entry['status']
 					: 'active';
 
-			$db->upsert_translation(
+			$ok = $db->upsert_translation(
 				sanitize_textarea_field( $entry['original_text'] ),
 				sanitize_key( $entry['language_code'] ),
 				sanitize_textarea_field( $entry['translated_text'] ),
 				$status
 			);
-			$count++;
+			if ( $ok ) {
+				$count++;
+			}
 		}
 
 		LP_Translator::instance()->invalidate_cache();
@@ -911,8 +917,7 @@ class LP_Admin {
 										$first = reset( $translations );
 									?>
 										<button type="button"
-												class="button button-small button-link-delete lp-delete-translation"
-												data-id="<?php echo esc_attr( $first['id'] ); ?>">
+												class="button button-small button-link-delete lp-delete-translation">
 											<?php esc_html_e( 'Löschen', 'langpress' ); ?>
 										</button>
 									<?php endif; ?>

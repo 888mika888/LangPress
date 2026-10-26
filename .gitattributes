@@ -1,0 +1,6 @@
+# Shell scripts must keep LF even in Windows checkouts (core.autocrlf=true).
+*.sh text eol=lf
+
+# Release artifact: never apply line-ending conversion or textual diffs.
+*.zip binary
+*.mo  binary

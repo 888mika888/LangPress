@@ -31,6 +31,8 @@ class LP_Activator {
 			'lp_font_size'         => '14',
 			'lp_padding'           => '8',
 			'lp_position_fixed'    => false,
+			'lp_auto_scan'         => 1,
+			'lp_delete_data_on_uninstall' => 0,
 			'lp_version'           => LP_VERSION,
 		];
 

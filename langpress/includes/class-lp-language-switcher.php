@@ -33,7 +33,7 @@ class LP_Language_Switcher {
 	public function enqueue_assets(): void {
 		$fixed = (bool) get_option( 'lp_position_fixed', false );
 
-		// Fixed switcher loads assets on all pages — page filter only applies to inline/shortcode.
+		// Fixed switcher loads assets on all pages; the page filter only applies to inline/shortcode.
 		if ( ! $fixed && ! $this->should_show_on_current_page() ) {
 			return;
 		}
@@ -55,7 +55,6 @@ class LP_Language_Switcher {
 
 		wp_localize_script( 'lp-public', 'LP', [
 			'ajaxUrl'     => admin_url( 'admin-ajax.php' ),
-			'nonce'       => wp_create_nonce( 'lp_switch_lang' ),
 			'currentLang' => LP_Translator::instance()->get_current_language(),
 			'defaultLang' => get_option( 'lp_default_language', 'de' ),
 		] );
@@ -70,7 +69,7 @@ class LP_Language_Switcher {
 			return;
 		}
 
-		// The full editor replaces the FAB on its own page — skip this enqueue entirely.
+		// The full editor replaces the FAB on its own page, so skip this enqueue entirely.
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		if ( isset( $_GET['lp_translation_editor'] ) && $_GET['lp_translation_editor'] === '1' ) {
 			return;
@@ -141,25 +140,27 @@ class LP_Language_Switcher {
 	public function render( bool $shortcode_context = false ): string {
 		$active_langs  = (array) get_option( 'lp_active_languages', [ 'de', 'en', 'uk' ] );
 		$current_lang  = LP_Translator::instance()->get_current_language();
-		$style         = get_option( 'lp_switcher_style', 'dropdown' );
-		$display_mode  = get_option( 'lp_display_mode', 'text' );
+		$style         = self::allowed( get_option( 'lp_switcher_style' ), [ 'dropdown', 'buttons' ] );
+		$display_mode  = self::allowed( get_option( 'lp_display_mode' ), [ 'text', 'flag', 'both' ] );
 		$all_languages = LP_Translator::available_languages();
-		$position      = get_option( 'lp_switcher_position', 'bottom-right' );
+		$position      = self::allowed( get_option( 'lp_switcher_position' ), [ 'bottom-right', 'bottom-left', 'top-right', 'top-left', 'shortcode-only' ] );
 		$fixed         = (bool) get_option( 'lp_position_fixed', false );
 
 		$custom_css = $this->build_inline_css();
 
-		$wrapper_class = 'lp-switcher lp-switcher--' . esc_attr( $style );
+		$wrapper_class = 'lp-switcher lp-switcher--' . $style;
 		if ( $shortcode_context ) {
 			$wrapper_class .= ' lp-switcher--inline';
 		} elseif ( $fixed ) {
-			$wrapper_class .= ' lp-switcher--fixed lp-switcher--' . esc_attr( $position );
+			$wrapper_class .= ' lp-switcher--fixed lp-switcher--' . $position;
 		}
 		if ( LP_Translator::is_rtl_language( $current_lang ) ) {
 			$wrapper_class .= ' lp-switcher--rtl';
 		}
 
-		$html  = '<div class="' . esc_attr( $wrapper_class ) . '" style="' . esc_attr( $custom_css ) . '">';
+		// translate="no": native language names are never translated, and the
+		// page scanner should not register them as source strings.
+		$html  = '<div class="' . esc_attr( $wrapper_class ) . '" style="' . esc_attr( $custom_css ) . '" translate="no">';
 		$html .= '<span class="lp-switcher__current">';
 		$html .= $this->render_lang_label( $current_lang, $display_mode, $all_languages );
 		$html .= '<span class="lp-switcher__arrow" aria-hidden="true">&#9660;</span>';
@@ -217,13 +218,9 @@ class LP_Language_Switcher {
 	 * Build a URL for switching to the given language code.
 	 */
 	private function get_lang_url( string $lang_code ): string {
-		$current_url = ( is_ssl() ? 'https://' : 'http://' )
-					 . sanitize_text_field( wp_unslash( $_SERVER['HTTP_HOST'] ?? '' ) )
-					 . sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ?? '/' ) );
-
 		// Also strip lp_translation_editor so switching language in editor mode
 		// exits editor mode and shows the translated page (where translations apply).
-		$url = remove_query_arg( [ 'lp_lang', 'lp_translation_editor' ], $current_url );
+		$url = remove_query_arg( [ 'lp_lang', 'lp_translation_editor' ], LP_Frontend::get_current_url() );
 
 		// Default language always uses a clean URL without ?lp_lang=.
 		if ( $lang_code === get_option( 'lp_default_language', 'de' ) ) {
@@ -235,23 +232,41 @@ class LP_Language_Switcher {
 
 	/**
 	 * Build inline CSS custom properties from the saved design options.
+	 *
+	 * Values are validated here, at the point of use, not only when the design
+	 * form saves them: anything else that writes these options (another plugin,
+	 * a migration, direct DB edits) must not be able to inject declarations.
+	 * esc_attr() alone only stops attribute breakout, not CSS injection.
 	 */
 	private function build_inline_css(): string {
-		$props = [
-			'--lp-bg'            => get_option( 'lp_bg_color', '#ffffff' ),
-			'--lp-text'          => get_option( 'lp_text_color', '#333333' ),
-			'--lp-border'        => get_option( 'lp_border_color', '#cccccc' ),
-			'--lp-hover'         => get_option( 'lp_hover_color', '#f0f0f0' ),
-			'--lp-radius'        => get_option( 'lp_border_radius', '4' ) . 'px',
-			'--lp-font-size'     => get_option( 'lp_font_size', '14' ) . 'px',
-			'--lp-padding'       => get_option( 'lp_padding', '8' ) . 'px',
+		$colors = [
+			'--lp-bg'     => [ 'lp_bg_color', '#ffffff' ],
+			'--lp-text'   => [ 'lp_text_color', '#333333' ],
+			'--lp-border' => [ 'lp_border_color', '#cccccc' ],
+			'--lp-hover'  => [ 'lp_hover_color', '#f0f0f0' ],
+		];
+		$sizes = [
+			'--lp-radius'    => [ 'lp_border_radius', 4, 0, 50 ],
+			'--lp-font-size' => [ 'lp_font_size', 14, 8, 32 ],
+			'--lp-padding'   => [ 'lp_padding', 8, 0, 40 ],
 		];
 
 		$css = '';
-		foreach ( $props as $prop => $val ) {
-			$css .= sanitize_text_field( $prop ) . ':' . sanitize_text_field( $val ) . ';';
+		foreach ( $colors as $prop => [ $option, $default ] ) {
+			$value = get_option( $option, $default );
+			$css  .= $prop . ':' . ( is_string( $value ) && sanitize_hex_color( $value ) ? $value : $default ) . ';';
+		}
+		foreach ( $sizes as $prop => [ $option, $default, $min, $max ] ) {
+			$value = get_option( $option, $default );
+			$value = is_numeric( $value ) ? (int) $value : $default;
+			$css  .= $prop . ':' . max( $min, min( $max, $value ) ) . 'px;';
 		}
 		return $css;
+	}
+
+	/** Return $value if it is one of $allowed, otherwise the first allowed value. */
+	private static function allowed( $value, array $allowed ): string {
+		return in_array( $value, $allowed, true ) ? $value : $allowed[0];
 	}
 
 	// -------------------------------------------------------------------------
@@ -273,7 +288,7 @@ class LP_Language_Switcher {
 			return;
 		}
 
-		// Fixed mode ignores the page filter — it appears on every page.
+		// Fixed mode ignores the page filter; it appears on every page.
 		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 		echo $this->render( false );
 	}
@@ -282,10 +297,20 @@ class LP_Language_Switcher {
 	// AJAX
 	// -------------------------------------------------------------------------
 
+	/**
+	 * Public endpoint: remember a visitor's language choice.
+	 *
+	 * Deliberately no nonce and no capability check. Logged-out visitors all
+	 * share the same nonce, page caches serve it long after it expires (which
+	 * broke switching back to the default language), and the only effect (a
+	 * language cookie holding an allow-listed code) is exactly what any plain
+	 * link with ?lp_lang= already does without a request token. Nothing here
+	 * touches settings or translations.
+	 */
 	public function ajax_switch_lang(): void {
-		check_ajax_referer( 'lp_switch_lang', 'nonce' );
-
-		$lang   = isset( $_POST['lang'] ) ? sanitize_key( wp_unslash( $_POST['lang'] ) ) : '';
+		// Exact match against the allow-list is the validation; nothing is normalized.
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- see above
+		$lang   = isset( $_POST['lang'] ) && is_string( $_POST['lang'] ) ? wp_unslash( $_POST['lang'] ) : '';
 		$active = (array) get_option( 'lp_active_languages', [ 'de', 'en', 'uk' ] );
 
 		if ( ! in_array( $lang, $active, true ) ) {

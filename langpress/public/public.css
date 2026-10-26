@@ -50,7 +50,7 @@
     transform: rotate(180deg);
 }
 
-/* Dropdown list — uses visibility/opacity for smooth open AND close */
+/* Dropdown list: uses visibility/opacity for smooth open AND close */
 .lp-switcher__list {
     position: absolute;
     top: calc(100% + 4px);

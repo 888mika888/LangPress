@@ -2,8 +2,12 @@
 ( function ( $ ) {
     'use strict';
 
+    // Messages may come from AJAX responses, so always insert them as text.
     function showToast( message, type ) {
-        const toast = $( '<div class="lp-toast lp-toast--' + type + '">' + message + '</div>' );
+        const toast = $( '<div>' )
+            .addClass( 'lp-toast lp-toast--' + ( type === 'success' ? 'success' : 'error' ) )
+            .attr( 'role', type === 'success' ? 'status' : 'alert' )
+            .text( message );
         $( 'body' ).append( toast );
         setTimeout( () => toast.addClass( 'lp-toast--visible' ), 10 );
         setTimeout( function () {
@@ -33,18 +37,20 @@
 
         $btn.prop( 'disabled', true ).text( '…' );
 
+        // .attr(), not .data(): jQuery's .data() type-converts values, so an
+        // original text like "1e3" or "[1]" would be sent as 1000 or an array.
         $.post( LP_Admin.ajaxUrl, {
             action:     'lp_save_translation',
             nonce:      LP_Admin.nonce,
-            hash:       $btn.data( 'hash' ),
-            lang:       $btn.data( 'lang' ),
-            original:   $btn.data( 'original' ),
+            hash:       $btn.attr( 'data-hash' ),
+            lang:       $btn.attr( 'data-lang' ),
+            original:   $btn.attr( 'data-original' ),
             translated: translated,
             status:     $select.val(),
         } )
         .done( function ( res ) {
             if ( res.success ) {
-                // The server auto-activates when translated_text is non-empty — reflect that here.
+                // The server auto-activates when translated_text is non-empty; reflect that here.
                 const effectiveStatus = translated.trim() !== '' ? 'active' : $select.val();
                 $badge.removeClass( 'lp-status--active lp-status--pending lp-status--ignored' )
                       .addClass( 'lp-status--' + effectiveStatus )
@@ -90,7 +96,7 @@
         $.post( LP_Admin.ajaxUrl, {
             action: 'lp_delete_translation',
             nonce:  LP_Admin.nonce,
-            hash:   $row.data( 'hash' ),
+            hash:   $row.attr( 'data-hash' ),
         } )
         .done( function ( res ) {
             if ( res.success ) {

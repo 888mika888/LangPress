@@ -1,0 +1,78 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  static:
+    name: Source and package checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          coverage: none
+
+      - name: PHP lint, BOM check
+        run: bash bin/check-source.sh
+
+      - name: JavaScript syntax
+        run: for f in langpress/admin/*.js langpress/public/*.js; do node --check "$f"; done
+
+      # The committed ZIP must be a portable build of exactly the committed source.
+      # Rebuild it with `bash bin/build-zip.sh --worktree` before committing changes under langpress/.
+      - name: Committed langpress.zip matches source
+        run: bash bin/check-package.sh langpress.zip HEAD
+
+  tests:
+    name: Tests (PHP ${{ matrix.php }}, ${{ matrix.db }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.5']
+        db: [mysql, sqlite]
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: lp_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -proot"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: dom, mbstring, mysqli, pdo_sqlite, intl
+          coverage: none
+
+      - name: Disposable WordPress (latest stable)
+        env:
+          WP_DIR: ${{ runner.temp }}/wp
+          DB: ${{ matrix.db }}
+          DB_HOST: 127.0.0.1:3306
+          DB_NAME: lp_test
+          DB_USER: root
+          DB_PASSWORD: root
+        run: bash bin/setup-test-wp.sh
+
+      - name: Integration and security regression tests
+        env:
+          LP_WP_DIR: ${{ runner.temp }}/wp
+        run: php tests/run.php
+
+      - name: WordPress debug log
+        if: always()
+        run: cat "${{ runner.temp }}/wp/debug.log" 2>/dev/null || echo "(empty)"

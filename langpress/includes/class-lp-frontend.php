@@ -7,7 +7,7 @@ defined( 'ABSPATH' ) || exit;
  *   2. PHP output buffering that swaps text nodes for the active language
  *
  * ALL hooks are registered inside the 'wp' action so they are never
- * active during REST API, AJAX, cron, or XML-RPC requests — those exit
+ * active during REST API, AJAX, cron, or XML-RPC requests; those exit
  * before 'wp' fires, making it impossible for LP to interfere.
  */
 class LP_Frontend {
@@ -32,7 +32,7 @@ class LP_Frontend {
 
 	/**
 	 * Register all frontend hooks.
-	 * Only called on real frontend page loads — never on REST/AJAX/cron.
+	 * Only called on real frontend page loads, never on REST/AJAX/cron.
 	 */
 	public function register_hooks(): void {
 		// Skip admin-initiated page loads just in case.
@@ -66,17 +66,94 @@ class LP_Frontend {
 		}
 
 		// Default language: scan the rendered HTML for new translatable strings.
-		// Throttled to once per URL per day via a transient.
-		$page_url  = $this->get_current_url();
-		$trans_key = 'lp_scanned_' . md5( $page_url );
-
-		if ( ! get_transient( $trans_key ) ) {
-			ob_start( function ( string $html ) use ( $translator, $page_url, $trans_key ): string {
-				$this->extract_and_register_texts( $html, $translator, $page_url );
-				set_transient( $trans_key, 1, DAY_IN_SECONDS );
-				return $html;
-			} );
+		// Throttled to once per page per day; see get_scan_key() for what "page" means.
+		$scan_key = $this->get_scan_key();
+		if ( $scan_key === null ) {
+			return;
 		}
+
+		$trans_key = 'lp_scan_' . md5( $scan_key );
+		if ( get_transient( $trans_key ) ) {
+			return;
+		}
+
+		// Claim the slot before rendering so concurrent requests for the same page
+		// don't all scan it; a failed scan is simply retried after the TTL.
+		set_transient( $trans_key, 1, DAY_IN_SECONDS );
+
+		$page_url = self::get_current_url();
+		ob_start( function ( string $html ) use ( $translator, $page_url ): string {
+			$this->extract_and_register_texts( $html, $translator, $page_url );
+			return $html;
+		} );
+	}
+
+	/**
+	 * Identify the page being rendered for the scan throttle, or return null
+	 * when this request should not be scanned at all.
+	 *
+	 * The previous throttle keyed on the full request URL, so every unique query
+	 * string (?x=1, ?x=2, …) triggered a fresh scan and left a transient behind:
+	 * unauthenticated, unbounded writes. The key is now derived from what
+	 * WordPress resolved the request to, so its range is bounded by the site's own
+	 * content, and it includes the content's modification time so edits are
+	 * picked up without waiting for the throttle to expire.
+	 */
+	private function get_scan_key(): ?string {
+		if ( ! get_option( 'lp_auto_scan', 1 ) ) {
+			return null;
+		}
+
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+		if ( 'GET' !== ( $_SERVER['REQUEST_METHOD'] ?? 'GET' ) ) {
+			return null;
+		}
+
+		// Search results and 404s echo visitor input; previews and feeds are not pages.
+		if ( is_search() || is_404() || is_preview() || is_feed() || is_embed()
+			|| is_robots() || is_trackback() || is_customize_preview() ) {
+			return null;
+		}
+
+		// Only scan clean URLs. Arguments WordPress doesn't route on (tracking
+		// parameters, cache busters, plugin parameters) could change what a theme
+		// prints, so a request carrying them never triggers registration.
+		global $wp;
+		$routing = array_merge( $wp->public_query_vars ?? [], [ 'lp_lang' ] );
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		foreach ( array_keys( $_GET ) as $arg ) {
+			if ( ! in_array( $arg, $routing, true ) ) {
+				return null;
+			}
+		}
+
+		$object = get_queried_object();
+		if ( $object instanceof WP_Post ) {
+			$id = 'post:' . $object->ID . ':' . $object->post_modified_gmt;
+		} elseif ( $object instanceof WP_Term ) {
+			$id = 'term:' . $object->term_id;
+		} elseif ( $object instanceof WP_User ) {
+			$id = 'user:' . $object->ID;
+		} elseif ( $object instanceof WP_Post_Type ) {
+			$id = 'type:' . $object->name;
+		} elseif ( is_front_page() || is_home() ) {
+			$id = 'home';
+		} else {
+			return null; // date archives and other unusual views are not worth scanning
+		}
+
+		if ( ! $object instanceof WP_Post ) {
+			// Listing pages change whenever any post does.
+			$id .= ':' . get_lastpostmodified( 'gmt' );
+		}
+
+		$paged = (int) get_query_var( 'paged' );
+		$page  = (int) get_query_var( 'page' );
+		if ( $paged > 1000 || $page > 1000 ) {
+			return null;
+		}
+
+		return $id . '|' . $paged . '|' . $page;
 	}
 
 	private function is_editor_mode(): bool {
@@ -101,7 +178,8 @@ class LP_Frontend {
 			'defaultLang' => $default_lang,
 			'targetLangs' => $target_langs,
 			'postId'      => (int) get_queried_object_id(),
-			'closeUrl'    => esc_url( remove_query_arg( 'lp_translation_editor' ) ),
+			// esc_url() would turn & into &#038; inside this JS string and break the URL.
+			'closeUrl'    => esc_url_raw( remove_query_arg( 'lp_translation_editor', self::get_current_url() ) ),
 		] );
 	}
 
@@ -221,8 +299,16 @@ class LP_Frontend {
 	}
 
 	private function extract_and_register_texts( string $html, LP_Translator $translator, string $page_url ): void {
+		$texts = $this->collect_page_texts( $html );
+		if ( $texts ) {
+			$translator->register_texts( $texts, $page_url );
+		}
+	}
+
+	/** @return string[] Unique translatable strings found in a rendered page. */
+	private function collect_page_texts( string $html ): array {
 		if ( trim( $html ) === '' ) {
-			return;
+			return [];
 		}
 
 		$use_errors = libxml_use_internal_errors( true );
@@ -234,18 +320,24 @@ class LP_Frontend {
 		$texts = [];
 		$this->collect_texts( $doc, $texts );
 
-		foreach ( array_unique( $texts ) as $text ) {
-			$translator->register_text( $text, $page_url );
-		}
+		return array_values( array_unique( $texts ) );
 	}
 
 	private function collect_texts( DOMNode $node, array &$texts ): void {
+		if ( count( $texts ) >= LP_Translator::MAX_STRINGS_PER_SCAN * 2 ) {
+			return; // bounded work on pathological pages; duplicates are removed later
+		}
+
 		if ( $node instanceof DOMElement ) {
 			$tag = strtolower( $node->nodeName );
-			if ( in_array( $tag, [ 'script', 'style', 'noscript', 'code', 'pre', 'textarea', 'head' ], true ) ) {
+			if ( $tag === 'head' || in_array( $tag, LP_Translator::SKIP_TAGS, true ) ) {
 				return;
 			}
 			if ( $node->getAttribute( 'translate' ) === 'no' ) {
+				return;
+			}
+			// The admin bar is per-user chrome ("Howdy, …"), not page content.
+			if ( $node->getAttribute( 'id' ) === 'wpadminbar' ) {
 				return;
 			}
 
@@ -281,7 +373,7 @@ class LP_Frontend {
 		}
 
 		$default_lang = get_option( 'lp_default_language', 'de' );
-		$base_url     = remove_query_arg( [ 'lp_lang', 'lp_translation_editor' ], $this->get_current_url() );
+		$base_url     = remove_query_arg( [ 'lp_lang', 'lp_translation_editor' ], self::get_current_url() );
 
 		foreach ( $active_langs as $lang_code ) {
 			$href = ( $lang_code === $default_lang )
@@ -314,9 +406,36 @@ class LP_Frontend {
 		return $output;
 	}
 
-	private function get_current_url(): string {
-		return ( is_ssl() ? 'https://' : 'http://' )
-			 . sanitize_text_field( wp_unslash( $_SERVER['HTTP_HOST'] ?? 'localhost' ) )
-			 . sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ?? '/' ) );
+	/**
+	 * Absolute URL of the current request, for hreflang and switcher links.
+	 *
+	 * Scheme, host and port come from the configured home URL, never from the
+	 * Host header, which the client controls. Building on HTTP_HOST let a forged
+	 * header point every generated link (and any cached copy of the page) at an
+	 * attacker's domain. Only the path and query are taken from the request, and
+	 * they are not passed through sanitize_text_field(), which strips
+	 * percent-encoded octets and mangled non-ASCII slugs. Callers escape for
+	 * their output context (esc_url / esc_url_raw).
+	 */
+	public static function get_current_url(): string {
+		$home   = wp_parse_url( home_url() );
+		$origin = ( $home['scheme'] ?? 'http' ) . '://' . ( $home['host'] ?? 'localhost' )
+				. ( isset( $home['port'] ) ? ':' . $home['port'] : '' );
+
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- validated below
+		$uri = isset( $_SERVER['REQUEST_URI'] ) ? (string) wp_unslash( $_SERVER['REQUEST_URI'] ) : '/';
+
+		// An absolute-form request target ("GET http://other.host/path") must not
+		// contribute an authority; keep only its path and query.
+		if ( ! str_starts_with( $uri, '/' ) ) {
+			$parts = wp_parse_url( $uri );
+			$uri   = '/' . ltrim( (string) ( $parts['path'] ?? '' ), '/' )
+				   . ( isset( $parts['query'] ) ? '?' . $parts['query'] : '' );
+		}
+
+		// Whitespace and control characters never belong in a request target.
+		$uri = preg_replace( '/[\x00-\x20\x7F]/', '', $uri ) ?? '/';
+
+		return $origin . $uri;
 	}
 }

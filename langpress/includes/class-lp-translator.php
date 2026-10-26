@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 defined( 'ABSPATH' ) || exit;
 
 /**
@@ -22,15 +22,27 @@ class LP_Translator {
 	/**
 	 * If any of these tags appear inside a block candidate we abandon the combined
 	 * lookup and fall back to per-node translation, to avoid accidentally flattening
-	 * links, buttons, images, or nested block structure.
+	 * links, buttons, images, embedded media, or nested block structure.
+	 * A combined translation rebuilds the block from text, so anything listed here
+	 * would otherwise be deleted from the page.
 	 */
 	private const BLOCK_BAIL_TAGS = [
 		'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
 		'ul', 'ol', 'li', 'table', 'thead', 'tbody', 'tr', 'td', 'th',
 		'div', 'section', 'article', 'header', 'footer', 'nav', 'main',
 		'blockquote', 'form', 'fieldset',
-		'a', 'button', 'img', 'input', 'select',
+		'a', 'button', 'img', 'input', 'select', 'textarea',
+		'iframe', 'frame', 'video', 'audio', 'source', 'track', 'picture',
+		'object', 'embed', 'canvas', 'svg', 'math', 'map', 'template',
+		'script', 'style', 'noscript', 'code', 'pre',
 	];
+
+	/** Elements whose text is never translated or registered. */
+	public const SKIP_TAGS = [ 'script', 'style', 'noscript', 'code', 'pre', 'textarea', 'template' ];
+
+	/** Upper bounds for automatic registration, so one page view does bounded work. */
+	public const MAX_STRINGS_PER_SCAN = 1000;
+	public const MAX_TEXT_LENGTH      = 5000;
 
 	/** hash => translated_text, keyed by language code */
 	private array $cache = [];
@@ -55,8 +67,8 @@ class LP_Translator {
 	 * Priority: URL param ?lp_lang → cookie → site default.
 	 */
 	public function detect_language(): string {
-		$active  = get_option( 'lp_active_languages', [ 'de', 'en', 'uk' ] );
-		$default = get_option( 'lp_default_language', 'de' );
+		$active  = (array) get_option( 'lp_active_languages', [ 'de', 'en', 'uk' ] );
+		$default = (string) get_option( 'lp_default_language', 'de' );
 
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		if ( isset( $_GET['lp_lang'] ) ) {
@@ -128,7 +140,7 @@ class LP_Translator {
 
 	/**
 	 * Run translations over a full HTML string.
-	 * Only visible text nodes are touched — attributes, scripts, and styles are left alone.
+	 * Only visible text nodes are touched; attributes, scripts, and styles are left alone.
 	 */
 	public function translate_html( string $html ): string {
 		if ( $this->is_default_language() || trim( $html ) === '' ) {
@@ -172,7 +184,7 @@ class LP_Translator {
 	private function walk_dom( DOMNode $node ): void {
 		if ( $node instanceof DOMElement ) {
 			$tag = strtolower( $node->nodeName );
-			if ( in_array( $tag, [ 'script', 'style', 'noscript', 'code', 'pre', 'textarea' ], true ) ) {
+			if ( in_array( $tag, self::SKIP_TAGS, true ) ) {
 				return;
 			}
 			if ( $node->getAttribute( 'translate' ) === 'no' ) {
@@ -194,7 +206,7 @@ class LP_Translator {
 				if ( $this->try_translate_block( $node ) ) {
 					return; // translated successfully as a combined block unit
 				}
-				// try_translate_block found no stored translation — fall through
+				// try_translate_block found no stored translation, so fall through
 				// to per-child recursion so nested blocks still get translated.
 			}
 		}
@@ -216,7 +228,7 @@ class LP_Translator {
 	 * Try to translate a block element as one combined string.
 	 * Returns true and rewrites the element's content if a translation is found.
 	 * Bails (returns false) whenever the subtree contains links, images, buttons,
-	 * or nested block elements — we must not flatten those into plain text.
+	 * or nested block elements; we must not flatten those into plain text.
 	 */
 	private function try_translate_block( DOMElement $el ): bool {
 		if ( $this->subtree_has_bail_tag( $el ) ) {
@@ -283,7 +295,7 @@ class LP_Translator {
 		}
 
 		if ( empty( $pieces ) ) {
-			return false; // No inline elements — nothing to preserve.
+			return false; // No inline elements, nothing to preserve.
 		}
 
 		// Locate each piece inside the translated string in order.
@@ -293,7 +305,7 @@ class LP_Translator {
 		foreach ( $pieces as $piece ) {
 			$pos = mb_stripos( $remaining, $piece['text'] );
 			if ( $pos === false ) {
-				return false; // Piece not found — bail, caller uses flat text.
+				return false; // Piece not found: bail, caller uses flat text.
 			}
 
 			// Extend the match forward to the nearest non-word character so
@@ -370,7 +382,7 @@ class LP_Translator {
 				}
 			} elseif ( $child instanceof DOMElement ) {
 				$tag = strtolower( $child->nodeName );
-				if ( in_array( $tag, [ 'script', 'style', 'noscript', 'code', 'pre' ], true ) ) {
+				if ( in_array( $tag, self::SKIP_TAGS, true ) ) {
 					continue;
 				}
 				if ( $child->getAttribute( 'translate' ) === 'no' ) {
@@ -406,7 +418,7 @@ class LP_Translator {
 	/**
 	 * Collect the visible text of an element by recursively descending into
 	 * all children (inline tags included), then normalize whitespace.
-	 * Does NOT apply bail-tag logic — call subtree_has_bail_tag() first.
+	 * Does NOT apply bail-tag logic; call subtree_has_bail_tag() first.
 	 */
 	public function get_block_text( DOMNode $node ): string {
 		$text = '';
@@ -415,7 +427,7 @@ class LP_Translator {
 				$text .= $child->nodeValue;
 			} elseif ( $child instanceof DOMElement ) {
 				$tag = strtolower( $child->nodeName );
-				if ( in_array( $tag, [ 'script', 'style', 'noscript', 'code', 'pre' ], true ) ) {
+				if ( in_array( $tag, self::SKIP_TAGS, true ) ) {
 					continue;
 				}
 				if ( $child->getAttribute( 'translate' ) === 'no' ) {
@@ -433,20 +445,36 @@ class LP_Translator {
 	 * Only creates a row if one doesn't already exist.
 	 */
 	public function register_text( string $text, string $page_url = '' ): void {
-		$trimmed = trim( $text );
-		if ( $trimmed === '' || mb_strlen( $trimmed ) < 2 ) {
-			return;
-		}
+		$this->register_texts( [ $text ], $page_url );
+	}
 
-		$db      = LP_Database::instance();
-		$active  = get_option( 'lp_active_languages', [ 'de', 'en', 'uk' ] );
-		$default = get_option( 'lp_default_language', 'de' );
+	/**
+	 * Batch version of register_text() used by the page scanner.
+	 * Work is bounded: at most MAX_STRINGS_PER_SCAN strings of up to
+	 * MAX_TEXT_LENGTH characters are considered per call.
+	 *
+	 * @param string[] $texts
+	 */
+	public function register_texts( array $texts, string $page_url = '' ): void {
+		$db    = LP_Database::instance();
+		$clean = [];
 
-		foreach ( $active as $lang ) {
-			if ( $lang !== $default ) {
-				$db->upsert_translation( $trimmed, $lang, '', 'pending', $page_url );
+		foreach ( $texts as $text ) {
+			$text = $db->clean_text( $text );
+			$len  = mb_strlen( $text );
+			if ( $len < 2 || $len > self::MAX_TEXT_LENGTH || ! preg_match( '/\p{L}/u', $text ) ) {
+				continue;
+			}
+			$clean[ $db->hash( $text ) ] = $text;
+			if ( count( $clean ) >= self::MAX_STRINGS_PER_SCAN ) {
+				break;
 			}
 		}
+
+		$default = get_option( 'lp_default_language', 'de' );
+		$targets = array_values( array_diff( (array) get_option( 'lp_active_languages', [ 'de', 'en', 'uk' ] ), [ $default ] ) );
+
+		$db->register_texts( array_values( $clean ), $targets, $page_url );
 	}
 
 	/**
@@ -455,7 +483,7 @@ class LP_Translator {
 	 */
 	public function invalidate_cache( string $lang = '' ): void {
 		if ( $lang === '' ) {
-			$active = get_option( 'lp_active_languages', [ 'de', 'en', 'uk' ] );
+			$active = (array) get_option( 'lp_active_languages', [ 'de', 'en', 'uk' ] );
 			foreach ( $active as $l ) {
 				wp_cache_delete( 'lp_translations_' . $l, 'lp' );
 			}
@@ -499,7 +527,7 @@ class LP_Translator {
 
 	/**
 	 * All languages the plugin can handle.
-	 * Add more here if you need them — just enable them in Settings > Languages.
+	 * Add more here if you need them, then enable them in Settings > Languages.
 	 *
 	 * @return array<string, array{label: string, native: string, flag: string}>
 	 */

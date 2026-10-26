@@ -304,7 +304,7 @@ body.lp-editor-active #wpadminbar {
     animation: lp-saved-flash 1.2s ease forwards !important;
 }
 
-/* --- Pencil icon — positioned inside top-right to avoid viewport clipping --- */
+/* --- Pencil icon: positioned inside top-right to avoid viewport clipping --- */
 .lp-pencil {
     position: absolute !important;
     top: 4px !important;

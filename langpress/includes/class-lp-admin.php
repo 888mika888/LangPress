@@ -232,6 +232,8 @@ class LP_Admin {
 		update_option( 'lp_switcher_pages',    $pages );
 		update_option( 'lp_position_fixed',    isset( $_POST['lp_position_fixed'] ) ? 1 : 0 );
 		update_option( 'lp_dark_mode',         isset( $_POST['lp_dark_mode'] ) ? 1 : 0 );
+		update_option( 'lp_auto_scan',         isset( $_POST['lp_auto_scan'] ) ? 1 : 0 );
+		update_option( 'lp_delete_data_on_uninstall', isset( $_POST['lp_delete_data_on_uninstall'] ) ? 1 : 0 );
 
 		add_settings_error( 'lp', 'lp_saved', __( 'Einstellungen gespeichert.', 'langpress' ), 'success' );
 	}
@@ -331,20 +333,27 @@ class LP_Admin {
 			return;
 		}
 
+		// Imported rows may target any supported language except the source language,
+		// so an export round-trips even if some languages are currently switched off.
+		$languages = array_diff( array_keys( LP_Translator::available_languages() ), [ get_option( 'lp_default_language', 'de' ) ] );
+
 		foreach ( $data as $entry ) {
-			if ( ! isset( $entry['original_text'], $entry['language_code'], $entry['translated_text'] ) ) {
+			if ( ! is_array( $entry ) || ! isset( $entry['original_text'], $entry['language_code'], $entry['translated_text'] ) ) {
 				continue;
 			}
-			$status = in_array( $entry['status'] ?? 'active', [ 'active', 'pending', 'ignored' ], true )
-					? $entry['status']
-					: 'active';
+			$original   = $db->clean_text( $entry['original_text'] );
+			$translated = $db->clean_text( $entry['translated_text'] );
+			$lang       = is_string( $entry['language_code'] ) ? $entry['language_code'] : '';
+			if ( $original === '' || ! is_string( $entry['translated_text'] ) || ! in_array( $lang, $languages, true ) ) {
+				continue;
+			}
+			// Entries without a status used to pass null on and abort the whole import with a TypeError.
+			$status = $entry['status'] ?? 'active';
+			if ( ! in_array( $status, [ 'active', 'pending', 'ignored' ], true ) ) {
+				$status = 'active';
+			}
 
-			$ok = $db->upsert_translation(
-				sanitize_textarea_field( $entry['original_text'] ),
-				sanitize_key( $entry['language_code'] ),
-				sanitize_textarea_field( $entry['translated_text'] ),
-				$status
-			);
+			$ok = $db->upsert_translation( $original, $lang, $translated, $status );
 			if ( $ok ) {
 				$count++;
 			}
@@ -371,14 +380,15 @@ class LP_Admin {
 			wp_send_json_error( [ 'message' => 'Insufficient permissions.' ] );
 		}
 
-		$original = sanitize_textarea_field( wp_unslash( $_POST['original'] ?? '' ) );
+		// Plain text, kept verbatim (see LP_Database::clean_text()) so the hash matches the page.
+		$db       = LP_Database::instance();
+		$original = $db->clean_text( wp_unslash( $_POST['original'] ?? '' ) );
 		$post_id  = absint( $_POST['post_id'] ?? 0 );
 
 		if ( $original === '' ) {
 			wp_send_json_error( [ 'message' => 'Missing original text.' ] );
 		}
 
-		$db           = LP_Database::instance();
 		$active_langs = (array) get_option( 'lp_active_languages', [ 'de', 'en', 'uk' ] );
 		$default_lang = get_option( 'lp_default_language', 'de' );
 		$target_langs = array_filter( $active_langs, fn( $l ) => $l !== $default_lang );
@@ -393,7 +403,7 @@ class LP_Admin {
 		if ( ! empty( $multi_langs ) ) {
 			$saved = [];
 			foreach ( $multi_langs as $lang ) {
-				$translated = sanitize_textarea_field( wp_unslash( $_POST[ $lang ] ) );
+				$translated = $db->clean_text( wp_unslash( $_POST[ $lang ] ) );
 				if ( $translated === '' ) {
 					continue; // Don't overwrite existing with empty
 				}
@@ -416,11 +426,11 @@ class LP_Admin {
 
 		// --- Legacy single-language save (from admin translations table) ---
 		$lang       = sanitize_key( wp_unslash( $_POST['lang'] ?? '' ) );
-		$translated = sanitize_textarea_field( wp_unslash( $_POST['translated'] ?? '' ) );
+		$translated = $db->clean_text( wp_unslash( $_POST['translated'] ?? '' ) );
 		$status     = sanitize_key( wp_unslash( $_POST['status'] ?? 'active' ) );
 
-		if ( $lang === '' ) {
-			wp_send_json_error( [ 'message' => 'Missing parameters.' ] );
+		if ( ! in_array( $lang, $target_langs, true ) ) {
+			wp_send_json_error( [ 'message' => 'Invalid language.' ] );
 		}
 
 		$allowed_status = [ 'active', 'pending', 'ignored' ];
@@ -471,9 +481,9 @@ class LP_Admin {
 			wp_send_json_error( [ 'message' => 'Insufficient permissions.' ] );
 		}
 
-		$hash   = sanitize_text_field( wp_unslash( $_POST['hash'] ?? '' ) );
-		if ( $hash === '' ) {
-			wp_send_json_error( [ 'message' => 'Missing hash.' ] );
+		$hash = sanitize_text_field( wp_unslash( $_POST['hash'] ?? '' ) );
+		if ( ! preg_match( '/^[a-f0-9]{64}$/', $hash ) ) {
+			wp_send_json_error( [ 'message' => 'Invalid hash.' ] );
 		}
 
 		$result = LP_Database::instance()->delete_by_hash( $hash );
@@ -503,11 +513,12 @@ class LP_Admin {
 
 		$filename = 'lp-export-' . gmdate( 'Y-m-d' ) . '.json';
 
+		// Exported strings (including page_url) are data. nosniff makes sure no
+		// browser ever renders the download as HTML.
+		nocache_headers();
 		header( 'Content-Type: application/json; charset=utf-8' );
 		header( 'Content-Disposition: attachment; filename="' . $filename . '"' );
-		header( 'Cache-Control: no-cache, no-store, must-revalidate' );
-		header( 'Pragma: no-cache' );
-		header( 'Expires: 0' );
+		header( 'X-Content-Type-Options: nosniff' );
 
 		// phpcs:ignore WordPress.WP.AlternativeFunctions.json_encode_json_encode
 		echo json_encode( $rows, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE );
@@ -549,8 +560,8 @@ class LP_Admin {
 		$lang    = sanitize_key( wp_unslash( $_POST['language_code'] ?? $_POST['lang'] ?? '' ) );
 		$post_id = absint( $_POST['post_id'] ?? 0 );
 
-		if ( $lang === '' ) {
-			wp_send_json_error( [ 'message' => 'Missing language_code.' ] );
+		if ( ! in_array( $lang, (array) get_option( 'lp_active_languages', [ 'de', 'en', 'uk' ] ), true ) ) {
+			wp_send_json_error( [ 'message' => 'Invalid language_code.' ] );
 		}
 
 		$translations = LP_Database::instance()->get_translations_for_language( $lang );
@@ -573,12 +584,12 @@ class LP_Admin {
 			wp_send_json_error( [ 'message' => 'Insufficient permissions.' ] );
 		}
 
-		$original = sanitize_textarea_field( wp_unslash( $_POST['original'] ?? '' ) );
+		$db       = LP_Database::instance();
+		$original = $db->clean_text( wp_unslash( $_POST['original'] ?? '' ) );
 		if ( $original === '' ) {
 			wp_send_json_error( [ 'message' => 'Missing text.' ] );
 		}
 
-		$db           = LP_Database::instance();
 		$hash         = $db->hash( $original );
 		$active_langs = (array) get_option( 'lp_active_languages', [ 'de', 'en', 'uk' ] );
 		$default_lang = get_option( 'lp_default_language', 'de' );
@@ -594,13 +605,13 @@ class LP_Admin {
 			// Primary lookup by normalized hash (current format).
 			$translated = $db->get_translation( $hash, $lang );
 
-			// Fallback 1: match by original_text column — covers rows saved by older
+			// Fallback 1: match by original_text column. Covers rows saved by older
 			// versions whose text_hash was computed with a different algorithm.
 			if ( $translated === null ) {
 				$translated = $db->get_translation_by_original_text( $original, $lang );
 			}
 
-			// Fallback 2: match by normalized_text column — covers whitespace variants.
+			// Fallback 2: match by normalized_text column. Covers whitespace variants.
 			if ( $translated === null ) {
 				$translated = $db->get_translation_by_normalized( $normalized, $lang );
 			}
@@ -705,6 +716,26 @@ class LP_Admin {
 									<input type="checkbox" name="lp_dark_mode" value="1" <?php checked( (bool) get_option( 'lp_dark_mode', 0 ) ); ?>>
 									<?php esc_html_e( 'Enable dark mode for the LangPress admin UI', 'langpress' ); ?>
 								</label>
+							</td>
+						</tr>
+						<tr>
+							<th><?php esc_html_e( 'Automatic text detection', 'langpress' ); ?></th>
+							<td>
+								<label>
+									<input type="checkbox" name="lp_auto_scan" value="1" <?php checked( (bool) get_option( 'lp_auto_scan', 1 ) ); ?>>
+									<?php esc_html_e( 'Register new texts when pages are viewed in the default language', 'langpress' ); ?>
+								</label>
+								<p class="description"><?php esc_html_e( 'Each page is scanned at most once a day and again after it is edited. Search results, 404 pages and URLs with unknown query parameters are never scanned.', 'langpress' ); ?></p>
+							</td>
+						</tr>
+						<tr>
+							<th><?php esc_html_e( 'Uninstall', 'langpress' ); ?></th>
+							<td>
+								<label>
+									<input type="checkbox" name="lp_delete_data_on_uninstall" value="1" <?php checked( (bool) get_option( 'lp_delete_data_on_uninstall', 0 ) ); ?>>
+									<?php esc_html_e( 'Delete all translations and LangPress settings when the plugin is deleted', 'langpress' ); ?>
+								</label>
+								<p class="description"><?php esc_html_e( 'Off by default, so translations survive a reinstall. This cannot be undone, so export your translations first.', 'langpress' ); ?></p>
 							</td>
 						</tr>
 					</table>
@@ -1287,7 +1318,7 @@ class LP_Admin {
 		$names   = '<strong>' . esc_html( implode( ', ', $found ) ) . '</strong>';
 		$message = sprintf(
 			/* translators: %s: comma-separated list of caching plugin names */
-			__( '%s detected. Page caching can bypass LangPress\'s output buffer — translations may not appear on cached pages. Exclude translated URLs from your cache, or flush the cache after saving translations.', 'langpress' ),
+			__( '%s detected. Page caching can bypass LangPress\'s output buffer, so translations may not appear on cached pages. Exclude translated URLs from your cache, or flush the cache after saving translations.', 'langpress' ),
 			$names
 		);
 

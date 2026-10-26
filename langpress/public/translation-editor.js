@@ -17,11 +17,11 @@
         'select', 'option', 'meta', 'link', 'head', 'br', 'hr',
     ] );
 
-    // Semantic block-level elements — always leaf text containers.
+    // Semantic block-level elements: always leaf text containers.
     // Read with getCleanText (full innerText including inline children).
     const SEMANTIC_SEL = 'h1, h2, h3, h4, h5, h6, p, li, blockquote, figcaption, dt, dd, td, th, .wp-block-button__link';
 
-    // Inline / interactive elements — only get pencils when NOT already
+    // Inline / interactive elements: only get pencils when NOT already
     // inside a .lp-translatable ancestor.
     const INLINE_SEL = 'a, button, label, strong, b, em, span';
 
@@ -44,16 +44,16 @@
     // -------------------------------------------------------------------------
     // Three-pass scan
     //
-    // Pass 1 — Semantic block elements (h1-h6, p, li, …)
+    // Pass 1: Semantic block elements (h1-h6, p, li, …)
     //   These are always individual text units. Use full innerText.
     //
-    // Pass 2 — Inline elements (a, button, strong, …)
+    // Pass 2: Inline elements (a, button, strong, …)
     //   Skip if already covered by a .lp-translatable ancestor from pass 1.
     //
-    // Pass 3 — Divs with DIRECT text nodes only
+    // Pass 3: Divs with DIRECT text nodes only
     //   A div is only a translation unit when it has its own text content
     //   (not just child elements). getDirectText reads only TEXT_NODEs,
-    //   never descendant element text — so container wrappers are never
+    //   never descendant element text, so container wrappers are never
     //   captured as one big text block.
     // -------------------------------------------------------------------------
 
@@ -85,7 +85,7 @@
             count++;
         } );
 
-        // Pass 2: inline elements — only standalone ones (not inside a block).
+        // Pass 2: inline elements, only standalone ones (not inside a block).
         document.querySelectorAll( INLINE_SEL ).forEach( function ( el ) {
             if ( shouldSkip( el ) ) return;
             const text = getCleanText( el );
@@ -109,7 +109,7 @@
     // Split an element whose lines are separated by <br> tags into individual
     // inline-block spans, each becoming its own translation unit.
     function splitAtBRs( el ) {
-        // querySelector searches all descendants — we only want direct <br> children
+        // querySelector searches all descendants; we only want direct <br> children
         let hasBR = false;
         el.childNodes.forEach( function ( n ) {
             if ( n.nodeName.toLowerCase() === 'br' ) hasBR = true;
@@ -158,7 +158,7 @@
             }
         } );
 
-        // Mark each segment — apply mixed-split first if segment has bold+text.
+        // Mark each segment: apply mixed-split first if segment has bold+text.
         el.querySelectorAll( '.lp-br-segment' ).forEach( function ( span ) {
             if ( tryMixedSplit( span ) ) {
                 span.dataset.lpProcessed = '1';
@@ -172,7 +172,7 @@
     }
 
     // Split an element that contains BOTH inline elements (strong, em, a…) AND bare
-    // text nodes — e.g. <p><strong>E-Mail:</strong> kontakt@herz2herz.org</p>.
+    // text nodes, e.g. <p><strong>E-Mail:</strong> kontakt@herz2herz.org</p>.
     // Wraps each bare text node in <span class="lp-text-segment"> and marks every
     // direct child element as its own translation unit.
     // Returns true when at least one child was marked.
@@ -223,7 +223,7 @@
     }
 
     // -------------------------------------------------------------------------
-    // shouldSkip — shared by all passes
+    // shouldSkip: shared by all passes
     // -------------------------------------------------------------------------
 
     function shouldSkip( el ) {
@@ -234,7 +234,7 @@
         if ( el.closest( '#lp-fab' ) )             return true;
 
         // Skip only if THIS element itself is marked translate="no".
-        // Do NOT use closest() here — themes often put translate="no" on entire
+        // Do NOT use closest() here: themes often put translate="no" on entire
         // content wrappers to block browser auto-translate, which would incorrectly
         // skip every text block on the page.
         if ( el.getAttribute( 'translate' ) === 'no' ) return true;
@@ -251,7 +251,7 @@
         // Skipping prevents double pencils and wrong-text-in-sidebar issues.
         if ( el.closest( '.lp-translatable' ) ) return true;
 
-        // Has block-level children — each child will get its own pencil.
+        // Has block-level children; each child will get its own pencil.
         // This stops li>p, blockquote>p, etc. from being captured as one blob.
         if ( el.querySelector( 'h1,h2,h3,h4,h5,h6,p,li,blockquote,dt,dd,td,th,figcaption' ) ) return true;
 
@@ -259,7 +259,7 @@
     }
 
     // -------------------------------------------------------------------------
-    // markElement — attach pencil with a direct element reference
+    // markElement: attach pencil with a direct element reference
     // -------------------------------------------------------------------------
 
     function markElement( el, text ) {
@@ -275,7 +275,7 @@
         pencil.setAttribute( 'translate', 'no' );
         pencil.setAttribute( 'aria-label', 'Translate this text' );
 
-        // Direct closure reference to `el` — no querySelector, no hash lookup.
+        // Direct closure reference to `el`, no querySelector, no hash lookup.
         pencil.addEventListener( 'click', function ( e ) {
             e.preventDefault();
             e.stopPropagation();
@@ -299,7 +299,7 @@
     // -------------------------------------------------------------------------
 
     // Full visible text of an element including all inline children.
-    // Uses the live element (attached to DOM) so innerText has proper layout —
+    // Uses the live element (attached to DOM) so innerText has proper layout;
     // innerText on a detached clone returns "" in browsers, causing fallback to
     // textContent which concatenates blocks without spaces ("Herz2Herzc/o…").
     // Safe to call pre-pencil because markElement appends the pencil AFTER this.
@@ -307,7 +307,7 @@
         return normalizeText( el.innerText || el.textContent || '' );
     }
 
-    // Only direct TEXT_NODE children — ignores all descendant element text.
+    // Only direct TEXT_NODE children; ignores all descendant element text.
     // Used for div elements so container wrappers never capture combined text.
     // Joins parts with a space so <br>-separated lines don't lose their gap.
     function getDirectText( el ) {

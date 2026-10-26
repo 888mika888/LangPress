@@ -13,6 +13,9 @@ class LP_Database {
 	private string $table_translations;
 	private string $table_settings;
 
+	/** Per-request memo for column_exists(), so even without a persistent cache we query once. */
+	private array $columns = [];
+
 	private function __construct() {
 		global $wpdb;
 		$this->table_translations = $wpdb->prefix . 'lp_translations';
@@ -28,7 +31,7 @@ class LP_Database {
 
 	/**
 	 * Create or update the database tables via dbDelta.
-	 * Safe to call repeatedly — dbDelta only adds missing columns/tables.
+	 * Safe to call repeatedly: dbDelta only adds missing columns/tables.
 	 *
 	 * Also handles migration from the old cwt_ table prefix (renamed from
 	 * Custom Website Translator to LangPress) so existing data is preserved.
@@ -46,14 +49,19 @@ class LP_Database {
 
 		$charset_collate = $wpdb->get_charset_collate();
 
-		$sql_translations = "CREATE TABLE IF NOT EXISTS {$this->table_translations} (
+		// No "IF NOT EXISTS": dbDelta() parses the table name from "CREATE TABLE <name>",
+		// and with that clause it never diffs the existing table, so new columns were
+		// silently never added on upgrade. TEXT columns carry no DEFAULT because MySQL
+		// rejects one, which made every dbDelta() run retry a failing ALTER.
+		// normalized_text is nullable so it can be added to a table that already has rows.
+		$sql_translations = "CREATE TABLE {$this->table_translations} (
 			id              BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
 			post_id         BIGINT(20) UNSIGNED NULL DEFAULT NULL,
 			original_text   LONGTEXT            NOT NULL,
-			normalized_text LONGTEXT            NOT NULL DEFAULT '',
+			normalized_text LONGTEXT            NULL,
 			text_hash       VARCHAR(64)         NOT NULL,
 			language_code   VARCHAR(10)         NOT NULL,
-			translated_text LONGTEXT            NOT NULL DEFAULT '',
+			translated_text LONGTEXT            NOT NULL,
 			status          ENUM('active','ignored','pending') NOT NULL DEFAULT 'pending',
 			page_url        VARCHAR(2083)       NOT NULL DEFAULT '',
 			created_at      DATETIME            NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -65,7 +73,7 @@ class LP_Database {
 			KEY post_id_idx (post_id)
 		) $charset_collate;";
 
-		$sql_settings = "CREATE TABLE IF NOT EXISTS {$this->table_settings} (
+		$sql_settings = "CREATE TABLE {$this->table_settings} (
 			id            BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
 			setting_key   VARCHAR(191)        NOT NULL,
 			setting_value LONGTEXT,
@@ -76,6 +84,12 @@ class LP_Database {
 		require_once ABSPATH . 'wp-admin/includes/upgrade.php';
 		dbDelta( $sql_translations );
 		dbDelta( $sql_settings );
+
+		// The schema may have just changed, so forget what we knew about it.
+		$this->columns = [];
+		foreach ( [ 'normalized_text', 'post_id' ] as $column ) {
+			wp_cache_delete( 'lp_col_' . $column, 'lp' );
+		}
 	}
 
 	/**
@@ -129,8 +143,12 @@ class LP_Database {
 	}
 
 	/**
-	 * Insert or update a translation row.
+	 * Insert or update a translation row in a single atomic statement.
 	 * The hash is always derived from $original_text so the caller never needs to pass it.
+	 *
+	 * A SELECT-then-INSERT here lost writes when two requests registered or saved
+	 * the same string at once (the second INSERT hit the hash_lang unique key).
+	 * INSERT ... ON DUPLICATE KEY UPDATE lets the database resolve that race.
 	 */
 	public function upsert_translation(
 		string $original_text,
@@ -142,68 +160,161 @@ class LP_Database {
 	): bool {
 		global $wpdb;
 
-		$hash = $this->hash( $original_text );
 		$now  = current_time( 'mysql' );
+		$data = [
+			'original_text'   => [ $original_text, '%s' ],
+			'text_hash'       => [ $this->hash( $original_text ), '%s' ],
+			'language_code'   => [ $language_code, '%s' ],
+			'translated_text' => [ $translated_text, '%s' ],
+			'status'          => [ $status, '%s' ],
+			'page_url'        => [ $this->clean_url( $page_url ), '%s' ],
+			'created_at'      => [ $now, '%s' ],
+			'updated_at'      => [ $now, '%s' ],
+		];
 
-		$existing = $wpdb->get_var(
-			$wpdb->prepare(
-				"SELECT id FROM {$this->table_translations}
-				 WHERE text_hash = %s AND language_code = %s",
-				$hash,
-				$language_code
-			)
-		);
-
-		if ( $existing ) {
-			// Don't overwrite an existing translation with an empty placeholder (e.g. from auto-registration).
-			// Prevents register_text() from wiping active translations every 24 hours.
-			if ( $translated_text === '' ) {
-				return true;
-			}
-
-			$data   = [
-				'translated_text' => $translated_text,
-				'status'          => $status,
-				'page_url'        => $page_url,
-				'updated_at'      => $now,
-			];
-			$format = [ '%s', '%s', '%s', '%s' ];
-
-			if ( $post_id > 0 && $this->column_exists( 'post_id' ) ) {
-				$data['post_id'] = $post_id;
-				$format[]        = '%d';
-			}
-
-			$result = $wpdb->update( $this->table_translations, $data, [ 'id' => $existing ], $format, [ '%d' ] );
-		} else {
-			$data   = [
-				'original_text'   => $original_text,
-				'text_hash'       => $hash,
-				'language_code'   => $language_code,
-				'translated_text' => $translated_text,
-				'status'          => $status,
-				'page_url'        => $page_url,
-				'created_at'      => $now,
-				'updated_at'      => $now,
-			];
-			$format = [ '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' ];
-
-			// Guard against sites that haven't migrated to the latest schema yet.
-			// column_exists() is cached so this won't hammer the DB on every request.
-			if ( $this->column_exists( 'normalized_text' ) ) {
-				$data['normalized_text'] = $this->normalize( $original_text );
-				$format[]                = '%s';
-			}
-
-			if ( $post_id > 0 && $this->column_exists( 'post_id' ) ) {
-				$data['post_id'] = $post_id;
-				$format[]        = '%d';
-			}
-
-			$result = $wpdb->insert( $this->table_translations, $data, $format );
+		// Guard against sites that haven't migrated to the latest schema yet.
+		if ( $this->column_exists( 'normalized_text' ) ) {
+			$data['normalized_text'] = [ $this->normalize( $original_text ), '%s' ];
+		}
+		$with_post_id = $post_id > 0 && $this->column_exists( 'post_id' );
+		if ( $with_post_id ) {
+			$data['post_id'] = [ $post_id, '%d' ];
 		}
 
-		return $result !== false;
+		if ( $translated_text === '' ) {
+			// Empty placeholder (auto-registration): create the row if missing, never
+			// touch an existing one, so active translations are not wiped.
+			$on_duplicate = 'id = id';
+		} else {
+			// VALUES() is what core's add_option() uses; it works on MySQL and MariaDB.
+			// An empty page_url means "unknown", so keep the URL recorded at registration.
+			$on_duplicate = 'translated_text = VALUES(translated_text), status = VALUES(status), updated_at = VALUES(updated_at),'
+						  . " page_url = IF(VALUES(page_url) = '', page_url, VALUES(page_url))"
+						  . ( $with_post_id ? ', post_id = VALUES(post_id)' : '' );
+		}
+
+		$sql = sprintf(
+			'INSERT INTO %s (%s) VALUES (%s) ON DUPLICATE KEY UPDATE %s',
+			$this->table_translations,
+			implode( ', ', array_keys( $data ) ),
+			implode( ', ', array_column( $data, 1 ) ),
+			$on_duplicate
+		);
+
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- placeholders built above, values bound here.
+		return false !== $wpdb->query( $wpdb->prepare( $sql, ...array_column( $data, 0 ) ) );
+	}
+
+	/**
+	 * Register many source strings as pending for each target language.
+	 *
+	 * One SELECT per chunk of hashes finds rows that already exist, and the
+	 * missing ones go in as multi-row inserts, instead of a SELECT plus an
+	 * INSERT per string per language. ON DUPLICATE KEY keeps concurrent scans
+	 * of the same page harmless.
+	 *
+	 * @param string[] $texts     Trimmed source strings.
+	 * @param string[] $languages Target language codes.
+	 * @return int Number of rows newly queued for insertion.
+	 */
+	public function register_texts( array $texts, array $languages, string $page_url = '' ): int {
+		global $wpdb;
+
+		if ( ! $texts || ! $languages ) {
+			return 0;
+		}
+
+		$by_hash = [];
+		foreach ( $texts as $text ) {
+			$by_hash[ $this->hash( $text ) ] = $text;
+		}
+
+		$page_url   = $this->clean_url( $page_url );
+		$now        = current_time( 'mysql' );
+		$normalized = $this->column_exists( 'normalized_text' );
+		$columns    = 'original_text, text_hash, language_code, translated_text, status, page_url, created_at, updated_at'
+					. ( $normalized ? ', normalized_text' : '' );
+		$row_sql    = $normalized ? '(%s, %s, %s, %s, %s, %s, %s, %s, %s)' : '(%s, %s, %s, %s, %s, %s, %s, %s)';
+
+		$rows  = [];
+		$args  = [];
+		$bytes = 0;
+		$total = 0;
+
+		$flush = function () use ( &$rows, &$args, &$bytes, &$total, $columns, $wpdb ): void {
+			if ( ! $rows ) {
+				return;
+			}
+			$sql = "INSERT INTO {$this->table_translations} ($columns) VALUES " . implode( ', ', $rows )
+				 . ' ON DUPLICATE KEY UPDATE id = id';
+			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- placeholders built above, values bound here.
+			if ( false !== $wpdb->query( $wpdb->prepare( $sql, ...$args ) ) ) {
+				$total += count( $rows );
+			}
+			$rows  = [];
+			$args  = [];
+			$bytes = 0;
+		};
+
+		foreach ( array_chunk( $by_hash, 200, true ) as $chunk ) {
+			$placeholders = implode( ', ', array_fill( 0, count( $chunk ), '%s' ) );
+			$existing     = $wpdb->get_results(
+				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				$wpdb->prepare( "SELECT text_hash, language_code FROM {$this->table_translations} WHERE text_hash IN ($placeholders)", ...array_keys( $chunk ) ),
+				ARRAY_A
+			);
+
+			$have = [];
+			foreach ( $existing as $row ) {
+				$have[ $row['text_hash'] . '|' . $row['language_code'] ] = true;
+			}
+
+			foreach ( $chunk as $hash => $text ) {
+				foreach ( $languages as $lang ) {
+					if ( isset( $have[ $hash . '|' . $lang ] ) ) {
+						continue;
+					}
+					$rows[] = $row_sql;
+					array_push( $args, $text, $hash, $lang, '', 'pending', $page_url, $now, $now );
+					if ( $normalized ) {
+						$args[] = $this->normalize( $text );
+					}
+					// Keep each statement well under conservative max_allowed_packet limits.
+					$bytes += 2 * strlen( $text ) + 200;
+					if ( $bytes > 1000000 || count( $rows ) >= 500 ) {
+						$flush();
+					}
+				}
+			}
+		}
+		$flush();
+
+		return $total;
+	}
+
+	/**
+	 * Normalize a plain-text string for storage.
+	 *
+	 * Translations are plain text that is only ever output through DOM text nodes
+	 * or esc_html()/esc_attr()/esc_textarea(), so characters like "<" or "%AB"
+	 * are kept verbatim. sanitize_textarea_field() rewrote or stripped them, so
+	 * the saved hash no longer matched the text on the page.
+	 */
+	public function clean_text( $text ): string {
+		if ( ! is_string( $text ) ) {
+			return '';
+		}
+		$text = wp_check_invalid_utf8( $text, true );
+		$text = preg_replace( '/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', '', $text ) ?? '';
+		return trim( $text );
+	}
+
+	/** Sanitize a page URL for storage; anything that is not an http(s) URL becomes ''. */
+	private function clean_url( string $url ): string {
+		if ( $url === '' ) {
+			return '';
+		}
+		return substr( esc_url_raw( $url, [ 'http', 'https' ] ), 0, 2083 );
 	}
 
 	public function update_status( int $id, string $status ): bool {
@@ -416,13 +527,22 @@ class LP_Database {
 	/**
 	 * Check whether a column exists in the translations table.
 	 * Result is cached for an hour so repeated calls are free.
+	 *
+	 * The cache stores 1/0 and is read with the $found flag: storing a bare
+	 * boolean made a cached `false` indistinguishable from a cache miss, so a
+	 * missing column re-ran the information_schema query on every call.
 	 */
 	private function column_exists( string $column ): bool {
-		$cache_key = 'lp_col_' . $column;
-		$cached    = wp_cache_get( $cache_key, 'lp' );
+		if ( isset( $this->columns[ $column ] ) ) {
+			return $this->columns[ $column ];
+		}
 
-		if ( $cached !== false ) {
-			return (bool) $cached;
+		$cache_key = 'lp_col_' . $column;
+		$found     = false;
+		$cached    = wp_cache_get( $cache_key, 'lp', false, $found );
+
+		if ( $found ) {
+			return $this->columns[ $column ] = (bool) $cached;
 		}
 
 		global $wpdb;
@@ -435,8 +555,8 @@ class LP_Database {
 			)
 		);
 
-		wp_cache_set( $cache_key, $exists, 'lp', 3600 );
+		wp_cache_set( $cache_key, $exists ? 1 : 0, 'lp', HOUR_IN_SECONDS );
 
-		return $exists;
+		return $this->columns[ $column ] = $exists;
 	}
 }

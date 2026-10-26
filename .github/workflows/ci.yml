@@ -55,7 +55,7 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php }}
-          extensions: dom, mbstring, mysqli, pdo_sqlite, intl
+          extensions: dom, mbstring, mysqli, pdo_sqlite, intl, zip
           coverage: none
 
       - name: Disposable WordPress (latest stable)

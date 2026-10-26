@@ -163,6 +163,32 @@ function lp_ajax( string $action, array $post, int $user_id, bool $nopriv = fals
 // -----------------------------------------------------------------------------
 
 /**
+ * Start PHP's built-in web server on $port for the test install, with
+ * output_buffering off (strict about output before headers) and the
+ * pretty-permalink router. Returns the process handle once it accepts connections.
+ *
+ * @return resource
+ */
+function lp_start_server( int $port ) {
+	$cmd = [ PHP_BINARY ];
+	if ( php_ini_loaded_file() ) {
+		array_push( $cmd, '-c', php_ini_loaded_file() );
+	}
+	array_push( $cmd, '-d', 'output_buffering=0', '-S', LP_HTTP_HOST . ':' . $port, '-t', getenv( 'LP_WP_DIR' ), __DIR__ . '/router.php' );
+	$log  = sys_get_temp_dir() . '/lp-test-server.log';
+	$proc = proc_open( $cmd, [ [ 'pipe', 'r' ], [ 'file', $log, 'a' ], [ 'file', $log, 'a' ] ], $pipes );
+	for ( $i = 0; $i < 50; $i++ ) {
+		$fp = @fsockopen( LP_HTTP_HOST, $port, $e, $s, 0.2 );
+		if ( $fp ) {
+			fclose( $fp );
+			break;
+		}
+		usleep( 100000 );
+	}
+	return $proc;
+}
+
+/**
  * Send a raw HTTP/1.0 request so headers like Host and the request target are
  * passed through unmodified (curl would normalize or reject some of them).
  *

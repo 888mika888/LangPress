@@ -35,13 +35,21 @@ class LP_Translator {
 		'iframe', 'frame', 'video', 'audio', 'source', 'track', 'picture',
 		'object', 'embed', 'canvas', 'svg', 'math', 'map', 'template',
 		'script', 'style', 'noscript', 'code', 'pre',
+		// The visual editor saves each <br>-separated line on its own, so a block
+		// containing <br> is registered and matched per line, never as one string.
+		'br',
 	];
 
 	/** Elements whose text is never translated or registered. */
 	public const SKIP_TAGS = [ 'script', 'style', 'noscript', 'code', 'pre', 'textarea', 'template' ];
 
-	/** Upper bounds for automatic registration, so one page view does bounded work. */
+	/**
+	 * Upper bounds for automatic registration, so one page view does bounded work.
+	 * A scan looks up at most MAX_STRINGS_PER_PAGE strings and writes at most
+	 * MAX_STRINGS_PER_SCAN new ones; larger pages are completed by later scans.
+	 */
 	public const MAX_STRINGS_PER_SCAN = 1000;
+	public const MAX_STRINGS_PER_PAGE = 5000;
 	public const MAX_TEXT_LENGTH      = 5000;
 
 	/** hash => translated_text, keyed by language code */
@@ -163,6 +171,15 @@ class LP_Translator {
 		libxml_clear_errors();
 		libxml_use_internal_errors( $use_errors );
 
+		// Remove the hint from the tree itself. libxml serializes it without the
+		// closing question mark the old string regex expected, so it used to leak
+		// into every translated page.
+		foreach ( iterator_to_array( $doc->childNodes ) as $child ) {
+			if ( $child instanceof DOMProcessingInstruction ) {
+				$doc->removeChild( $child );
+			}
+		}
+
 		$this->walk_dom( $doc );
 
 		$result = '';
@@ -170,8 +187,13 @@ class LP_Translator {
 			$result .= $doc->saveHTML( $child );
 		}
 
-		// Strip the xml PI that loadHTML added at the top.
-		return preg_replace( '/<\?xml[^>]*\?>\n?/', '', $result ) ?? $html;
+		// libxml does not serialize a doctype that followed the hint. Without one,
+		// browsers render the translated page in quirks mode, so put it back.
+		if ( preg_match( '/^\s*(<!DOCTYPE[^>]*>)/i', $html, $m ) && stripos( ltrim( $result ), '<!DOCTYPE' ) !== 0 ) {
+			$result = $m[1] . "\n" . $result;
+		}
+
+		return $result;
 	}
 
 	/**
@@ -253,13 +275,48 @@ class LP_Translator {
 		// inline child's text inside the translated string.  Falls back to flat text
 		// if any piece cannot be found (e.g. the inline text itself was translated).
 		if ( ! $this->apply_block_translation( $el, $translated ) ) {
-			while ( $el->firstChild ) {
-				$el->removeChild( $el->firstChild );
-			}
-			$el->appendChild( $el->ownerDocument->createTextNode( $translated ) );
+			$this->replace_block_text( $el, $translated );
 		}
 
 		return true;
+	}
+
+	/**
+	 * Flat fallback: put the whole translation into one text node and empty the
+	 * other text nodes, but keep every element. Removing all children here used
+	 * to delete icons (<i class="fa …">), empty spans and translate="no" parts.
+	 */
+	private function replace_block_text( DOMElement $el, string $translated ): void {
+		$target = null;
+		foreach ( $el->childNodes as $child ) {
+			if ( $child instanceof DOMText && trim( $child->nodeValue ) !== '' ) {
+				$target = $child;
+				break;
+			}
+		}
+
+		$this->clear_text_nodes( $el );
+
+		if ( $target ) {
+			// Keep the space that separated it from a preceding icon or element.
+			$lead              = substr( $target->wholeText, 0, strspn( $target->wholeText, " \t\r\n" ) );
+			$target->nodeValue = ( $lead !== '' ? ' ' : '' ) . $translated;
+		} else {
+			$el->insertBefore( $el->ownerDocument->createTextNode( $translated ), $el->firstChild );
+		}
+	}
+
+	/** Empty every translatable text node below $node (skipped and translate="no" parts are kept). */
+	private function clear_text_nodes( DOMNode $node ): void {
+		foreach ( $node->childNodes as $child ) {
+			if ( $child instanceof DOMText ) {
+				$child->nodeValue = '';
+			} elseif ( $child instanceof DOMElement
+				&& ! in_array( strtolower( $child->nodeName ), self::SKIP_TAGS, true )
+				&& $child->getAttribute( 'translate' ) !== 'no' ) {
+				$this->clear_text_nodes( $child );
+			}
+		}
 	}
 
 	/**
@@ -281,7 +338,9 @@ class LP_Translator {
 			}
 			$text = $this->get_block_text( $child );
 			if ( $text === '' ) {
-				continue;
+				// An icon, empty span or translate="no" part has no place in the
+				// translated string; rebuilding would drop it, so use the fallback.
+				return false;
 			}
 			$attrs = [];
 			foreach ( $child->attributes as $attr ) {
@@ -450,14 +509,20 @@ class LP_Translator {
 
 	/**
 	 * Batch version of register_text() used by the page scanner.
-	 * Work is bounded: at most MAX_STRINGS_PER_SCAN strings of up to
-	 * MAX_TEXT_LENGTH characters are considered per call.
+	 *
+	 * Work is bounded: strings longer than MAX_TEXT_LENGTH are skipped (never
+	 * truncated), at most MAX_STRINGS_PER_PAGE are looked up, and at most
+	 * MAX_STRINGS_PER_SCAN new ones are written. Capping the strings *looked
+	 * at* to the first 1,000 meant later strings on a long page were never
+	 * reached by any scan; capping the *new* ones lets each scan make progress.
 	 *
 	 * @param string[] $texts
+	 * @return bool False if limits left strings unregistered (scan again later).
 	 */
-	public function register_texts( array $texts, string $page_url = '' ): void {
-		$db    = LP_Database::instance();
-		$clean = [];
+	public function register_texts( array $texts, string $page_url = '' ): bool {
+		$db       = LP_Database::instance();
+		$clean    = [];
+		$complete = true;
 
 		foreach ( $texts as $text ) {
 			$text = $db->clean_text( $text );
@@ -465,16 +530,19 @@ class LP_Translator {
 			if ( $len < 2 || $len > self::MAX_TEXT_LENGTH || ! preg_match( '/\p{L}/u', $text ) ) {
 				continue;
 			}
-			$clean[ $db->hash( $text ) ] = $text;
-			if ( count( $clean ) >= self::MAX_STRINGS_PER_SCAN ) {
+			if ( count( $clean ) >= self::MAX_STRINGS_PER_PAGE && ! isset( $clean[ $db->hash( $text ) ] ) ) {
+				$complete = false;
 				break;
 			}
+			$clean[ $db->hash( $text ) ] = $text;
 		}
 
 		$default = get_option( 'lp_default_language', 'de' );
 		$targets = array_values( array_diff( (array) get_option( 'lp_active_languages', [ 'de', 'en', 'uk' ] ), [ $default ] ) );
 
-		$db->register_texts( array_values( $clean ), $targets, $page_url );
+		$result = $db->register_texts( array_values( $clean ), $targets, $page_url, self::MAX_STRINGS_PER_SCAN );
+
+		return $complete && $result['complete'];
 	}
 
 	/**

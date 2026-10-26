@@ -47,23 +47,7 @@ foreach ( glob( __DIR__ . '/test-*.php' ) as $file ) {
 }
 
 // Start a built-in web server for the HTTP-level tests.
-$server = null;
-if ( getenv( 'LP_NO_HTTP' ) !== '1' ) {
-	$cmd    = [ PHP_BINARY, '-d', 'output_buffering=0', '-S', LP_HTTP_HOST . ':' . LP_HTTP_PORT, '-t', $wp_dir ];
-	$ini    = php_ini_loaded_file();
-	if ( $ini ) {
-		array_splice( $cmd, 1, 0, [ '-c', $ini ] );
-	}
-	$server = proc_open( $cmd, [ [ 'pipe', 'r' ], [ 'file', sys_get_temp_dir() . '/lp-test-server.log', 'a' ], [ 'file', sys_get_temp_dir() . '/lp-test-server.log', 'a' ] ], $pipes, null, null );
-	for ( $i = 0; $i < 50; $i++ ) {
-		$fp = @fsockopen( LP_HTTP_HOST, LP_HTTP_PORT, $e, $s, 0.2 );
-		if ( $fp ) {
-			fclose( $fp );
-			break;
-		}
-		usleep( 100000 );
-	}
-}
+$server = getenv( 'LP_NO_HTTP' ) !== '1' ? lp_start_server( LP_HTTP_PORT ) : null;
 
 $filter = $argv[1] ?? '';
 $passed = $failed = 0;

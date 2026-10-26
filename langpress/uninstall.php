@@ -2,7 +2,8 @@
 /**
  * Runs when LangPress is deleted from the Plugins screen (not on deactivation).
  *
- * Always removed:  the page-scan throttle transients (a disposable cache).
+ * Always removed:  the page-scan throttle transients (a disposable cache) and
+ *                  the schema-upgrade retry flag.
  * Removed only if "Delete all translations and LangPress settings when the
  * plugin is deleted" is enabled under LangPress → Settings:
  *   - the {prefix}lp_translations and {prefix}lp_settings tables
@@ -29,6 +30,8 @@ $lp_uninstall_site = static function (): void {
 			);
 		}
 	}
+
+	delete_transient( 'lp_schema_retry' );
 
 	if ( ! get_option( 'lp_delete_data_on_uninstall' ) ) {
 		return;

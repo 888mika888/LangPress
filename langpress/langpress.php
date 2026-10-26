@@ -3,7 +3,7 @@
  * Plugin Name: LangPress
  * Plugin URI:  https://github.com/888mika888/LangPress
  * Description: Multilingual WordPress plugin with a visual translation editor. Supports German, English and Ukrainian without creating duplicate pages.
- * Version:     1.4.0
+ * Version:     1.5.0
  * Author:      888mika888
  * Author URI:  https://github.com/888mika888
  * Text Domain: langpress
@@ -15,7 +15,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'LP_VERSION',      '1.4.0' );
+define( 'LP_VERSION',      '1.5.0' );
 define( 'LP_PLUGIN_FILE',  __FILE__ );
 define( 'LP_PLUGIN_DIR',   plugin_dir_path( __FILE__ ) );
 define( 'LP_PLUGIN_URL',   plugin_dir_url( __FILE__ ) );
@@ -47,16 +47,21 @@ function lp_init(): void {
 	// Run dbDelta whenever the plugin version advances so new columns
 	// are added automatically, with no manual deactivate/reactivate needed.
 	$stored = get_option( 'lp_db_version', '0' );
-	if ( version_compare( $stored, LP_VERSION, '<' ) ) {
-		LP_Database::instance()->install();
-
+	if ( version_compare( $stored, LP_VERSION, '<' ) && ! get_transient( 'lp_schema_retry' ) ) {
 		// Before 1.4.0 the scan throttle created one transient per unique request
 		// URL, so sites may carry thousands of them. They are only a cache.
 		if ( version_compare( $stored, '1.4.0', '<' ) ) {
 			lp_delete_transients( 'lp_scanned_' );
 		}
 
-		update_option( 'lp_db_version', LP_VERSION );
+		// Only record the new version once the schema really is current, so a
+		// failed ALTER is retried instead of being forgotten. Retries are spaced
+		// out so a database that keeps refusing doesn't slow every request.
+		if ( LP_Database::instance()->install() ) {
+			update_option( 'lp_db_version', LP_VERSION );
+		} else {
+			set_transient( 'lp_schema_retry', 1, HOUR_IN_SECONDS );
+		}
 	}
 
 	LP_Translator::instance();

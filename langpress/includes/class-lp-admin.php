@@ -353,7 +353,10 @@ class LP_Admin {
 				$status = 'active';
 			}
 
-			$ok = $db->upsert_translation( $original, $lang, $translated, $status );
+			// page_url is part of the export; it is sanitized to an http(s) URL on write.
+			$page_url = isset( $entry['page_url'] ) && is_string( $entry['page_url'] ) ? $entry['page_url'] : '';
+
+			$ok = $db->upsert_translation( $original, $lang, $translated, $status, $page_url );
 			if ( $ok ) {
 				$count++;
 			}
@@ -543,7 +546,11 @@ class LP_Admin {
 			wp_send_json_error( [ 'message' => 'Insufficient permissions.' ] );
 		}
 
-		LP_Database::instance()->install();
+		if ( ! LP_Database::instance()->install() ) {
+			wp_send_json_error( [ 'message' => __( 'The database schema could not be upgraded. Check the database error log.', 'langpress' ) ] );
+		}
+		update_option( 'lp_db_version', LP_VERSION );
+		delete_transient( 'lp_schema_retry' );
 		wp_send_json_success( [ 'message' => 'DB neu installiert.' ] );
 	}
 

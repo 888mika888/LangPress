@@ -92,3 +92,46 @@ lp_test( 'translator: registration skips the admin bar and editor sidebar', func
 	// The real switcher markup must carry the opt-out.
 	assert_contains( 'translate="no"', LP_Language_Switcher::instance()->render( true ) );
 } );
+
+lp_test( 'translator: translated full pages keep their doctype and no parser marker', function () {
+	$page = "<!DOCTYPE html>\n<html lang=\"de\"><head><meta charset=\"UTF-8\"><title>Grüße</title>"
+		  . '<script>var s = "Привіт <b>";</script></head><body><p>Hallo Welt</p></body></html>';
+	$out = lp_translate_with( [ 'Hallo Welt' => 'Привіт, світе' ], $page );
+	assert_same( 0, strpos( $out, '<!DOCTYPE html>' ), 'doctype must stay first: ' . substr( $out, 0, 40 ) );
+	assert_not_contains( '<?xml', $out );
+	assert_contains( '<p>Привіт, світе</p>', $out );
+	assert_contains( '<title>Grüße</title>', $out );
+	assert_contains( 'var s = "Привіт <b>";', $out, 'inline script must be byte-identical' );
+} );
+
+lp_test( 'translator: combined fallback keeps icons, empty elements and translate="no" parts', function () {
+	$cases = [
+		[ '<p><i class="fa fa-download"></i> Download the <strong>guide</strong> now</p>', 'Download the guide now', 'Lade jetzt die Anleitung', 'class="fa fa-download"' ],
+		[ '<p><span class="badge"></span>New <b>feature</b> released</p>', 'New feature released', 'Neue Funktion', 'class="badge"' ],
+		[ '<p>Call <span translate="no">ACME</span> <em>today</em></p>', 'Call today', 'Ruf heute an', '<span translate="no">ACME</span>' ],
+	];
+	foreach ( $cases as [ $html, $orig, $translated, $kept ] ) {
+		lp_reset();
+		$out = lp_translate_with( [ $orig => $translated ], $html );
+		assert_contains( $kept, $out, 'element lost' );
+		assert_contains( $translated, $out, 'translation not applied' );
+		assert_not_contains( 'Download the', $out );
+	}
+} );
+
+lp_test( 'translator: <br> blocks are matched per line like the visual editor saves them', function () {
+	$out = lp_translate_with( [ 'Line one' => 'Zeile eins', 'Line two' => 'Zeile zwei' ], '<p>Line one<br>Line two</p>' );
+	assert_contains( '<p>Zeile eins<br>Zeile zwei</p>', $out );
+	$texts = lp_call_private( LP_Frontend::instance(), 'collect_page_texts', [ '<html><body><p>Line one<br>Line two</p></body></html>' ] );
+	assert_same( [ 'Line one', 'Line two' ], $texts );
+} );
+
+lp_test( 'translator: each target language gets its own translation', function () {
+	LP_Database::instance()->upsert_translation( 'Welcome', 'en', 'Welcome EN', 'active' );
+	LP_Database::instance()->upsert_translation( 'Welcome', 'uk', 'Ласкаво просимо', 'active' );
+	foreach ( [ 'en' => 'Welcome EN', 'uk' => 'Ласкаво просимо' ] as $lang => $expected ) {
+		LP_Translator::instance()->invalidate_cache();
+		lp_set_lang( $lang );
+		assert_contains( "<h2>$expected</h2>", LP_Translator::instance()->translate_html( '<h2>Welcome</h2>' ) );
+	}
+} );

@@ -32,19 +32,26 @@ class LP_Database {
 	/**
 	 * Create or update the database tables via dbDelta.
 	 * Safe to call repeatedly: dbDelta only adds missing columns/tables.
+	 * Returns false if the resulting schema is still incomplete.
 	 *
 	 * Also handles migration from the old cwt_ table prefix (renamed from
 	 * Custom Website Translator to LangPress) so existing data is preserved.
 	 */
-	public function install(): void {
+	public function install(): bool {
 		global $wpdb;
 
 		// Migrate data from the old plugin's table if it still exists.
-		// This runs once and is a no-op afterwards.
+		// This runs once and is a no-op afterwards. Only rename onto a free name,
+		// so an existing LangPress table is never touched, and check the outcome
+		// rather than the return value: the SQLite driver rejects RENAME TABLE and
+		// reports success for ALTER TABLE … RENAME TO without renaming anything.
 		$old_table = $wpdb->prefix . 'cwt_translations';
-		$exists    = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $old_table ) );
-		if ( $exists === $old_table ) {
+		$has_old   = $this->table_exists( $old_table );
+		if ( $has_old && ! $this->table_exists( $this->table_translations ) ) {
+			$suppress = $wpdb->suppress_errors( true );
 			$wpdb->query( "RENAME TABLE `{$old_table}` TO `{$this->table_translations}`" ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+			$wpdb->suppress_errors( $suppress );
+			$has_old = $this->table_exists( $old_table );
 		}
 
 		$charset_collate = $wpdb->get_charset_collate();
@@ -85,11 +92,42 @@ class LP_Database {
 		dbDelta( $sql_translations );
 		dbDelta( $sql_settings );
 
+		// The rename was not possible: copy the old rows into the new, still empty
+		// table, keeping their IDs. The old table stays behind as a backup.
+		if ( $has_old && ! $wpdb->get_var( "SELECT id FROM {$this->table_translations} LIMIT 1" ) ) {
+			$columns = 'id, original_text, text_hash, language_code, translated_text, status, page_url, created_at, updated_at';
+			$wpdb->query( "INSERT INTO {$this->table_translations} ($columns) SELECT $columns FROM `{$old_table}`" ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		}
+
 		// The schema may have just changed, so forget what we knew about it.
 		$this->columns = [];
-		foreach ( [ 'normalized_text', 'post_id' ] as $column ) {
+		foreach ( self::LATE_COLUMNS as $column ) {
 			wp_cache_delete( 'lp_col_' . $column, 'lp' );
 		}
+
+		return $this->schema_is_current();
+	}
+
+	private function table_exists( string $table ): bool {
+		global $wpdb;
+		return $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $table ) ) ) === $table;
+	}
+
+	/** Columns added after the first release; their presence marks an upgraded table. */
+	private const LATE_COLUMNS = [ 'normalized_text', 'post_id' ];
+
+	/**
+	 * Whether the translations table exists with every column the code writes.
+	 * dbDelta() reports nothing when an ALTER fails, so callers check this
+	 * instead of assuming an existing table is an upgraded one.
+	 */
+	public function schema_is_current(): bool {
+		foreach ( array_merge( [ 'text_hash', 'translated_text' ], self::LATE_COLUMNS ) as $column ) {
+			if ( ! $this->column_exists( $column ) ) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	/**
@@ -215,13 +253,15 @@ class LP_Database {
 	 *
 	 * @param string[] $texts     Trimmed source strings.
 	 * @param string[] $languages Target language codes.
-	 * @return int Number of rows newly queued for insertion.
+	 * @param int      $max_new   Stop after this many strings needed new rows.
+	 * @return array{rows: int, complete: bool} Rows written, and false for
+	 *         `complete` if $max_new was reached or an insert failed.
 	 */
-	public function register_texts( array $texts, array $languages, string $page_url = '' ): int {
+	public function register_texts( array $texts, array $languages, string $page_url = '', int $max_new = PHP_INT_MAX ): array {
 		global $wpdb;
 
 		if ( ! $texts || ! $languages ) {
-			return 0;
+			return [ 'rows' => 0, 'complete' => true ];
 		}
 
 		$by_hash = [];
@@ -236,12 +276,14 @@ class LP_Database {
 					. ( $normalized ? ', normalized_text' : '' );
 		$row_sql    = $normalized ? '(%s, %s, %s, %s, %s, %s, %s, %s, %s)' : '(%s, %s, %s, %s, %s, %s, %s, %s)';
 
-		$rows  = [];
-		$args  = [];
-		$bytes = 0;
-		$total = 0;
+		$rows     = [];
+		$args     = [];
+		$bytes    = 0;
+		$total    = 0;
+		$new      = 0;
+		$complete = true;
 
-		$flush = function () use ( &$rows, &$args, &$bytes, &$total, $columns, $wpdb ): void {
+		$flush = function () use ( &$rows, &$args, &$bytes, &$total, &$complete, $columns, $wpdb ): void {
 			if ( ! $rows ) {
 				return;
 			}
@@ -250,6 +292,8 @@ class LP_Database {
 			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- placeholders built above, values bound here.
 			if ( false !== $wpdb->query( $wpdb->prepare( $sql, ...$args ) ) ) {
 				$total += count( $rows );
+			} else {
+				$complete = false; // wpdb has logged the error; the next scan retries
 			}
 			$rows  = [];
 			$args  = [];
@@ -270,10 +314,16 @@ class LP_Database {
 			}
 
 			foreach ( $chunk as $hash => $text ) {
-				foreach ( $languages as $lang ) {
-					if ( isset( $have[ $hash . '|' . $lang ] ) ) {
-						continue;
-					}
+				$missing = array_filter( $languages, fn( $lang ) => ! isset( $have[ $hash . '|' . $lang ] ) );
+				if ( ! $missing ) {
+					continue;
+				}
+				if ( $new >= $max_new ) {
+					$complete = false;
+					break 2;
+				}
+				$new++;
+				foreach ( $missing as $lang ) {
 					$rows[] = $row_sql;
 					array_push( $args, $text, $hash, $lang, '', 'pending', $page_url, $now, $now );
 					if ( $normalized ) {
@@ -289,7 +339,7 @@ class LP_Database {
 		}
 		$flush();
 
-		return $total;
+		return [ 'rows' => $total, 'complete' => $complete ];
 	}
 
 	/**

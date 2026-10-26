@@ -82,8 +82,12 @@ class LP_Frontend {
 		set_transient( $trans_key, 1, DAY_IN_SECONDS );
 
 		$page_url = self::get_current_url();
-		ob_start( function ( string $html ) use ( $translator, $page_url ): string {
-			$this->extract_and_register_texts( $html, $translator, $page_url );
+		ob_start( function ( string $html ) use ( $translator, $page_url, $trans_key ): string {
+			if ( $this->is_html_response( $html )
+				&& ! $this->extract_and_register_texts( $html, $translator, $page_url ) ) {
+				// A very long page hit the per-scan limit: continue soon, not tomorrow.
+				set_transient( $trans_key, 1, 10 * MINUTE_IN_SECONDS );
+			}
 			return $html;
 		} );
 	}
@@ -142,12 +146,15 @@ class LP_Frontend {
 			return null; // date archives and other unusual views are not worth scanning
 		}
 
-		if ( ! $object instanceof WP_Post ) {
-			// Listing pages change whenever any post does.
+		// Listing pages (including a static "posts page") change whenever any post does.
+		$listing = ! $object instanceof WP_Post || is_home();
+		if ( $listing ) {
 			$id .= ':' . get_lastpostmodified( 'gmt' );
 		}
 
-		$paged = (int) get_query_var( 'paged' );
+		// `paged` only selects content on listings. On a single post WordPress
+		// ignores it, so including it there let ?paged=1..1000 force 1,000 scans.
+		$paged = $listing ? (int) get_query_var( 'paged' ) : 0;
 		$page  = (int) get_query_var( 'page' );
 		if ( $paged > 1000 || $page > 1000 ) {
 			return null;
@@ -265,44 +272,56 @@ class LP_Frontend {
 	}
 
 	public function process_output( string $html ): string {
-		if ( trim( $html ) === '' ) {
+		if ( ! $this->is_html_response( $html ) ) {
 			return $html;
+		}
+
+		return LP_Translator::instance()->translate_html( $html );
+	}
+
+	/**
+	 * Whether a buffered response is an HTML page we may translate or scan.
+	 * Used for both, so a plugin that answers a front-end URL with JSON or XML
+	 * is neither rewritten nor scanned for strings.
+	 */
+	private function is_html_response( string $html ): bool {
+		if ( trim( $html ) === '' ) {
+			return false;
 		}
 
 		// Never translate JSON, XML, or non-HTML responses.
 		$first = ltrim( $html );
-		if ( $first !== '' && ( $first[0] === '{' || $first[0] === '[' ) ) {
-			return $html;
+		if ( $first[0] === '{' || $first[0] === '[' ) {
+			return false;
 		}
 		if ( 0 === stripos( $first, '<?xml' ) || 0 === stripos( $first, '<rss' ) ) {
-			return $html;
+			return false;
 		}
 		if ( false === stripos( $html, '<html' ) && false === stripos( $html, '<!DOCTYPE' ) ) {
-			return $html;
+			return false;
 		}
 
 		// One final check now that all WP constants are defined.
 		if ( ( defined( 'REST_REQUEST' ) && REST_REQUEST )
 			|| ( defined( 'DOING_AJAX' ) && DOING_AJAX )
 			|| is_feed() ) {
-			return $html;
+			return false;
 		}
 
 		// Verify Content-Type header hasn't been changed to non-HTML.
 		foreach ( headers_list() as $header ) {
 			if ( stripos( $header, 'Content-Type:' ) === 0 && stripos( $header, 'text/html' ) === false ) {
-				return $html;
+				return false;
 			}
 		}
 
-		return LP_Translator::instance()->translate_html( $html );
+		return true;
 	}
 
-	private function extract_and_register_texts( string $html, LP_Translator $translator, string $page_url ): void {
+	/** @return bool False if registration hit a limit and the page should be scanned again soon. */
+	private function extract_and_register_texts( string $html, LP_Translator $translator, string $page_url ): bool {
 		$texts = $this->collect_page_texts( $html );
-		if ( $texts ) {
-			$translator->register_texts( $texts, $page_url );
-		}
+		return ! $texts || $translator->register_texts( $texts, $page_url );
 	}
 
 	/** @return string[] Unique translatable strings found in a rendered page. */
@@ -324,7 +343,7 @@ class LP_Frontend {
 	}
 
 	private function collect_texts( DOMNode $node, array &$texts ): void {
-		if ( count( $texts ) >= LP_Translator::MAX_STRINGS_PER_SCAN * 2 ) {
+		if ( count( $texts ) >= LP_Translator::MAX_STRINGS_PER_PAGE * 2 ) {
 			return; // bounded work on pathological pages; duplicates are removed later
 		}
 

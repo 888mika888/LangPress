@@ -133,7 +133,11 @@ function lp_import_json( string $json ): string {
 	$_POST  = [ 'lp_do_import' => '1', '_wpnonce' => wp_create_nonce( 'lp_import_nonce' ) ];
 	$_FILES = [ 'lp_import_file' => [ 'name' => 'x.json', 'tmp_name' => $tmp, 'error' => UPLOAD_ERR_OK, 'size' => strlen( $json ) ] ];
 	$GLOBALS['wp_settings_errors'] = [];
+	$_SERVER['REQUEST_METHOD']     = 'POST';
+	add_filter( 'lp_is_uploaded_file', '__return_true' ); // no real HTTP upload in the CLI suite
 	LP_Admin::instance()->handle_form_submissions();
+	remove_filter( 'lp_is_uploaded_file', '__return_true' );
+	unset( $_SERVER['REQUEST_METHOD'] );
 	$_POST = $_FILES = [];
 	@unlink( $tmp );
 	wp_set_current_user( 0 );

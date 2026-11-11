@@ -62,7 +62,7 @@ lp_test( 'import/export: an export re-imports byte-for-byte', function () {
 	$before   = $snapshot();
 
 	$auth   = lp_http_auth( 1, 'lp_admin_nonce' );
-	$export = lp_http( 'GET', '/wp-admin/admin-ajax.php?action=lp_export&nonce=' . $auth['nonce'], [ 'Cookie' => $auth['cookie'] ] );
+	$export = lp_http( 'POST', '/wp-admin/admin-ajax.php', [ 'Cookie' => $auth['cookie'] ], 'action=lp_export&nonce=' . $auth['nonce'] );
 	assert_true( is_array( json_decode( $export['body'], true ) ), 'export is not valid JSON' );
 
 	lp_reset();

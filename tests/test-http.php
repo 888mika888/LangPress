@@ -163,13 +163,30 @@ lp_test( 'http: anonymous requests to admin AJAX actions are refused without sid
 lp_test( 'http: admin export is valid JSON and includes page_url as data', function () {
 	LP_Database::instance()->upsert_translation( 'Export <me>', 'en', 'Exported', 'active', home_url( '/?p=1' ) );
 	$auth = lp_http_auth( 1, 'lp_admin_nonce' );
-	$r    = lp_http( 'GET', '/wp-admin/admin-ajax.php?action=lp_export&nonce=' . $auth['nonce'], [ 'Cookie' => $auth['cookie'] ] );
+	$r    = lp_http( 'POST', '/wp-admin/admin-ajax.php', [ 'Cookie' => $auth['cookie'] ], 'action=lp_export&nonce=' . $auth['nonce'] );
 	assert_same( 200, $r['status'] );
 	assert_contains( 'Content-Type: application/json', $r['headers'] );
 	assert_contains( 'X-Content-Type-Options: nosniff', $r['headers'] );
 	$rows = json_decode( $r['body'], true );
 	assert_true( is_array( $rows ) && count( $rows ) === 1, 'export body: ' . substr( $r['body'], 0, 80 ) );
 	assert_same( 'Export <me>', $rows[0]['original_text'] );
+} );
+
+lp_test( 'http: export refuses GET so the nonce never travels in a URL', function () {
+	$auth = lp_http_auth( 1, 'lp_admin_nonce' );
+	$r    = lp_http( 'GET', '/wp-admin/admin-ajax.php?action=lp_export&nonce=' . $auth['nonce'], [ 'Cookie' => $auth['cookie'] ] );
+	assert_same( 405, $r['status'] );
+} );
+
+lp_test( 'http: non-default language pages are marked uncacheable for shared caches', function () {
+	$r = lp_http( 'GET', '/?p=' . lp_hello_world_id() . '&lp_lang=en' );
+	assert_same( 200, $r['status'] );
+	assert_true( (bool) preg_match( '/^Vary:[^
+]*Cookie/mi', $r['headers'] ), "no Vary: Cookie:
+" . $r['headers'] );
+	assert_true( (bool) preg_match( '/^Cache-Control:[^
+]*private/mi', $r['headers'] ), "no private Cache-Control:
+" . $r['headers'] );
 } );
 
 lp_test( 'http: language switch endpoint validates the language and sets the cookie', function () {

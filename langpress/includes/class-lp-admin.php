@@ -313,7 +313,8 @@ class LP_Admin {
 
 		$tmp_file = $_FILES['lp_import_file']['tmp_name'];
 
-		if ( ! is_uploaded_file( $tmp_file ) ) {
+		// The filter exists so the CLI test suite, which has no real HTTP upload, can run the import.
+		if ( ! apply_filters( 'lp_is_uploaded_file', is_uploaded_file( $tmp_file ), $tmp_file ) ) {
 			add_settings_error( 'lp', 'lp_import_error', __( 'Keine Datei hochgeladen.', 'langpress' ), 'error' );
 			return;
 		}

@@ -60,6 +60,15 @@ class LP_Frontend {
 		$translator = LP_Translator::instance();
 
 		if ( ! $translator->is_default_language() ) {
+			// Output depends on the lp_language cookie / ?lp_lang, so shared caches
+			// must neither store it nor serve it to other visitors.
+			if ( ! defined( 'DONOTCACHEPAGE' ) ) {
+				define( 'DONOTCACHEPAGE', true );
+			}
+			if ( ! headers_sent() ) {
+				header( 'Vary: Cookie', false );
+				header( 'Cache-Control: private, max-age=0', true );
+			}
 			// Non-default language: capture output and translate it.
 			ob_start( [ $this, 'process_output' ] );
 			return;
@@ -157,6 +166,11 @@ class LP_Frontend {
 		$paged = $listing ? (int) get_query_var( 'paged' ) : 0;
 		$page  = (int) get_query_var( 'page' );
 		if ( $paged > 1000 || $page > 1000 ) {
+			return null;
+		}
+		// WordPress renders the last real page for any larger number, so each
+		// extra value would only mint another throttle transient.
+		if ( $object instanceof WP_Post && $page > 1 + substr_count( $object->post_content, '<!--nextpage-->' ) ) {
 			return null;
 		}
 

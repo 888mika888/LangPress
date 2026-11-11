@@ -110,7 +110,21 @@
     } );
 
     $( '#lp-export-btn' ).on( 'click', function () {
-        window.location.href = LP_Admin.ajaxUrl + '?action=lp_export&nonce=' + encodeURIComponent( LP_Admin.nonce );
+        // POST, so the nonce never ends up in a URL (logs, history, Referer).
+        const form = document.createElement( 'form' );
+        form.method = 'post';
+        form.action = LP_Admin.ajaxUrl;
+        form.style.display = 'none';
+        [ [ 'action', 'lp_export' ], [ 'nonce', LP_Admin.nonce ] ].forEach( function ( [ name, value ] ) {
+            const input = document.createElement( 'input' );
+            input.type  = 'hidden';
+            input.name  = name;
+            input.value = value;
+            form.appendChild( input );
+        } );
+        document.body.appendChild( form );
+        form.submit();
+        form.remove();
     } );
 
     $( '#lp-clear-cache' ).on( 'click', function () {

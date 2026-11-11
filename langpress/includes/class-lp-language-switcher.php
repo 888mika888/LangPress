@@ -96,7 +96,6 @@ class LP_Language_Switcher {
 
 		wp_localize_script( 'lp-translate-mode', 'LP_Translate', [
 			'ajaxUrl'     => admin_url( 'admin-ajax.php' ),
-			'nonce'       => wp_create_nonce( 'lp_admin_nonce' ),
 			'currentLang' => LP_Translator::instance()->get_current_language(),
 			'defaultLang' => get_option( 'lp_default_language', 'de' ),
 			'activeLangs' => get_option( 'lp_active_languages', [ 'de', 'en', 'uk' ] ),
@@ -273,7 +272,7 @@ class LP_Language_Switcher {
 	// Shortcode & Fixed Position
 	// -------------------------------------------------------------------------
 
-	public function render_shortcode( array $atts ): string {
+	public function render_shortcode( $atts = [] ): string {
 		if ( ! $this->should_show_on_current_page() ) {
 			return '';
 		}

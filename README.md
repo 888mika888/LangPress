@@ -23,7 +23,7 @@ Requirements: WordPress 6.0+, PHP 8.1+, MySQL 5.7+ or MariaDB 10.3+. Tested with
 3. Open any page while logged in as an administrator and click **✎ Translate Page** in the bottom-left corner.
 4. Click a text, type the translations in the sidebar, and press **Save**. The translation is live immediately.
 
-Available languages: German, English, Ukrainian, French, Spanish, Italian, Turkish, Polish, Russian and Arabic (right-to-left).
+Available languages: German, English, Ukrainian, French, Spanish, Italian, Turkish, Polish, Russian and Arabic.
 
 ## Language switcher
 
@@ -77,6 +77,18 @@ Please follow the [WordPress Coding Standards](https://developer.wordpress.org/c
 GPL v2 or later. See [LICENSE](LICENSE).
 
 ## Changelog
+
+### 1.5.1
+Security:
+- Pages in a non-default language are no longer stored by page caches, so a visitor with a language cookie can't make a cache serve their language to everyone.
+- A single post could still create up to 1,000 scan records per day through `?page=N`; out-of-range values are now ignored.
+- The export download is now a POST, and the admin nonce is no longer printed on every front-end page.
+- Import checks the upload, rejects files with more than 50,000 entries and skips oversized strings.
+- Settings forms show a message when the security check fails instead of doing nothing.
+
+Fixes:
+- `[langpress_switcher]` without attributes could cause a fatal error on PHP 8.
+- A malformed colour field could cause a fatal error when saving the design.
 
 ### 1.5.0
 Security:

@@ -177,32 +177,29 @@ class LP_Admin {
 	// -------------------------------------------------------------------------
 
 	public function handle_form_submissions(): void {
-		if ( ! current_user_can( 'manage_options' ) ) {
+		if ( 'POST' !== ( $_SERVER['REQUEST_METHOD'] ?? '' ) || ! current_user_can( 'manage_options' ) ) {
 			return;
 		}
 
-		if ( isset( $_POST['lp_save_settings'], $_POST['_wpnonce'] ) ) {
-			if ( wp_verify_nonce( sanitize_key( $_POST['_wpnonce'] ), 'lp_settings_nonce' ) ) {
-				$this->save_settings();
-			}
-		}
+		$forms = [
+			'lp_save_settings'  => [ 'lp_settings_nonce',  'save_settings' ],
+			'lp_save_languages' => [ 'lp_languages_nonce', 'save_languages' ],
+			'lp_save_design'    => [ 'lp_design_nonce',    'save_design' ],
+			'lp_do_import'      => [ 'lp_import_nonce',    'process_import' ],
+		];
 
-		if ( isset( $_POST['lp_save_languages'], $_POST['_wpnonce'] ) ) {
-			if ( wp_verify_nonce( sanitize_key( $_POST['_wpnonce'] ), 'lp_languages_nonce' ) ) {
-				$this->save_languages();
+		foreach ( $forms as $button => [ $action, $method ] ) {
+			if ( ! isset( $_POST[ $button ] ) ) {
+				continue;
 			}
-		}
-
-		if ( isset( $_POST['lp_save_design'], $_POST['_wpnonce'] ) ) {
-			if ( wp_verify_nonce( sanitize_key( $_POST['_wpnonce'] ), 'lp_design_nonce' ) ) {
-				$this->save_design();
+			$nonce = isset( $_POST['_wpnonce'] ) && is_string( $_POST['_wpnonce'] )
+				? sanitize_key( wp_unslash( $_POST['_wpnonce'] ) ) : '';
+			if ( ! wp_verify_nonce( $nonce, $action ) ) {
+				add_settings_error( 'lp', 'lp_nonce', __( 'Sicherheitsprüfung fehlgeschlagen. Bitte die Seite neu laden und erneut versuchen.', 'langpress' ), 'error' );
+				return;
 			}
-		}
-
-		if ( isset( $_POST['lp_do_import'], $_POST['_wpnonce'] ) ) {
-			if ( wp_verify_nonce( sanitize_key( $_POST['_wpnonce'] ), 'lp_import_nonce' ) ) {
-				$this->process_import();
-			}
+			$this->$method();
+			return;
 		}
 	}
 
@@ -281,7 +278,8 @@ class LP_Admin {
 
 		$color_fields = [ 'lp_bg_color', 'lp_text_color', 'lp_border_color', 'lp_hover_color' ];
 		foreach ( $color_fields as $field ) {
-			$val = sanitize_hex_color( $_POST[ $field ] ?? '#ffffff' ) ?: '#ffffff';
+			$raw = isset( $_POST[ $field ] ) && is_string( $_POST[ $field ] ) ? wp_unslash( $_POST[ $field ] ) : '';
+			$val = sanitize_hex_color( $raw ) ?: '#ffffff';
 			update_option( $field, $val );
 		}
 
@@ -314,6 +312,11 @@ class LP_Admin {
 		}
 
 		$tmp_file = $_FILES['lp_import_file']['tmp_name'];
+
+		if ( ! is_uploaded_file( $tmp_file ) ) {
+			add_settings_error( 'lp', 'lp_import_error', __( 'Keine Datei hochgeladen.', 'langpress' ), 'error' );
+			return;
+		}
 		$ext      = strtolower( pathinfo( sanitize_file_name( $_FILES['lp_import_file']['name'] ), PATHINFO_EXTENSION ) );
 
 		if ( $ext !== 'json' ) {
@@ -333,6 +336,11 @@ class LP_Admin {
 			return;
 		}
 
+		if ( count( $data ) > 50000 ) {
+			add_settings_error( 'lp', 'lp_import_error', __( 'Zu viele Einträge (Maximum: 50.000).', 'langpress' ), 'error' );
+			return;
+		}
+
 		// Imported rows may target any supported language except the source language,
 		// so an export round-trips even if some languages are currently switched off.
 		$languages = array_diff( array_keys( LP_Translator::available_languages() ), [ get_option( 'lp_default_language', 'de' ) ] );
@@ -344,6 +352,9 @@ class LP_Admin {
 			$original   = $db->clean_text( $entry['original_text'] );
 			$translated = $db->clean_text( $entry['translated_text'] );
 			$lang       = is_string( $entry['language_code'] ) ? $entry['language_code'] : '';
+			if ( mb_strlen( $original ) > 20000 || mb_strlen( $translated ) > 50000 ) {
+				continue;
+			}
 			if ( $original === '' || ! is_string( $entry['translated_text'] ) || ! in_array( $lang, $languages, true ) ) {
 				continue;
 			}
@@ -499,6 +510,10 @@ class LP_Admin {
 
 	public function ajax_export(): void {
 		check_ajax_referer( 'lp_admin_nonce', 'nonce' );
+
+		if ( 'POST' !== ( $_SERVER['REQUEST_METHOD'] ?? '' ) ) {
+			wp_die( esc_html__( 'Method not allowed.', 'langpress' ), '', [ 'response' => 405 ] );
+		}
 
 		if ( ! current_user_can( 'manage_options' ) ) {
 			wp_die( 'Forbidden', 403 );
